@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'home_page.dart';
+import 'package:firebase_core/firebase_core.dart';
+
 
 class RegisterPage extends StatefulWidget {
   final String? prefilledEmail;
@@ -22,11 +23,10 @@ class _RegisterPageState extends State<RegisterPage> {
   final _confirmPasswordController = TextEditingController();
   final _addressController = TextEditingController();
 
-  String _userType = 'Customer';
   bool _isLoading = false;
+  bool _requestManager = false;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
   final DatabaseReference _dbRef = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
     databaseURL: 'https://smart-paint-shop-default-rtdb.firebaseio.com',
@@ -58,12 +58,17 @@ class _RegisterPageState extends State<RegisterPage> {
     final confirm = _confirmPasswordController.text;
     final address = _addressController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty || address.isEmpty) {
+    if (name.isEmpty ||
+        email.isEmpty ||
+        phone.isEmpty ||
+        password.isEmpty ||
+        address.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill all fields")),
       );
       return;
     }
+
     if (password != confirm) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Passwords do not match")),
@@ -82,13 +87,16 @@ class _RegisterPageState extends State<RegisterPage> {
 
       await userCred.user!.updateDisplayName(name);
 
+      // All users are Customers except hardcoded admin
       await _dbRef.child('users').child(uid).set({
         'uid': uid,
         'name': name,
         'email': email,
         'phone': phone,
         'address': address,
-        'userType': _userType,
+        'userType': 'Customer',
+        'requestedRole': _requestManager ? 'Manager' : null,
+        'status': _requestManager ? 'pending' : 'approved',
         'createdAt': DateTime.now().toIso8601String(),
       });
 
@@ -115,7 +123,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    final emailIsPrefilled = widget.prefilledEmail != null && widget.prefilledEmail!.isNotEmpty;
+    final emailIsPrefilled =
+        widget.prefilledEmail != null && widget.prefilledEmail!.isNotEmpty;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -127,36 +136,38 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 20),
               Text(
                 'Create Account',
-                style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold),
+                style: GoogleFonts.poppins(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 20),
               _buildTextField(_nameController, 'Full Name', Icons.person),
-
-              // Email field: readOnly if prefilled
               _buildTextField(
                 _emailController,
                 'Email',
                 Icons.email,
                 readOnly: emailIsPrefilled,
               ),
-
               _buildTextField(_phoneController, 'Phone', Icons.phone),
               _buildTextField(_addressController, 'Address', Icons.home),
               _buildTextField(_passwordController, 'Password', Icons.lock, obscure: true),
-              _buildTextField(_confirmPasswordController, 'Confirm Password', Icons.lock_outline, obscure: true),
+              _buildTextField(
+                _confirmPasswordController,
+                'Confirm Password',
+                Icons.lock_outline,
+                obscure: true,
+              ),
               const SizedBox(height: 15),
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("User Type:"),
-                  const SizedBox(width: 10),
-                  DropdownButton<String>(
-                    value: _userType,
-                    items: ['Customer', 'Painter', 'Shop Owner'].map((type) {
-                      return DropdownMenuItem(value: type, child: Text(type));
-                    }).toList(),
-                    onChanged: (value) => setState(() => _userType = value!),
+                  Checkbox(
+                    value: _requestManager,
+                    onChanged: (value) {
+                      setState(() => _requestManager = value!);
+                    },
                   ),
+                  const Text("Request Manager Position"),
                 ],
               ),
               const SizedBox(height: 25),
@@ -168,7 +179,10 @@ class _RegisterPageState extends State<RegisterPage> {
                   backgroundColor: Colors.deepOrange,
                 ),
                 onPressed: _registerUser,
-                child: Text('Register', style: GoogleFonts.poppins(fontSize: 18, color: Colors.white)),
+                child: Text(
+                  'Register',
+                  style: GoogleFonts.poppins(fontSize: 18, color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -177,7 +191,9 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, {bool obscure = false, bool readOnly = false}) {
+  Widget _buildTextField(
+      TextEditingController controller, String hint, IconData icon,
+      {bool obscure = false, bool readOnly = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextField(

@@ -25,6 +25,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_animate: ^4.1.1+1
   lottie: ^2.3.2
+  firebase_storage: ^13.0.0
+  image_picker: ^1.0.7
+  iconsax: ^0.0.8
+  fluttertoast: ^8.2.1
 
 dev_dependencies:
   flutter_test:
@@ -47,7 +51,7 @@ flutter:
     - assets/premium.png
     - assets/budget.png
     - assets/eco.png
-    - assets/promo.png
-    - assets/paint_bg.png
     - assets/google.png
-    - assets/facebook.png
+    - assets/color1.jpeg
+    - assets/color2.jpeg
+    - assets/color3.jpeg

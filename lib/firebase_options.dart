@@ -46,6 +46,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '675110412127',
     projectId: 'smart-paint-shop',
     authDomain: 'smart-paint-shop.firebaseapp.com',
+    databaseURL: 'https://smart-paint-shop-default-rtdb.firebaseio.com',
     storageBucket: 'smart-paint-shop.firebasestorage.app',
     measurementId: 'G-5PNLMRSS62',
   );
@@ -55,6 +56,7 @@ class DefaultFirebaseOptions {
     appId: '1:675110412127:android:29a374a81f1c939ed560ea',
     messagingSenderId: '675110412127',
     projectId: 'smart-paint-shop',
+    databaseURL: 'https://smart-paint-shop-default-rtdb.firebaseio.com',
     storageBucket: 'smart-paint-shop.firebasestorage.app',
   );
 
@@ -63,6 +65,7 @@ class DefaultFirebaseOptions {
     appId: '1:675110412127:ios:993d85bce480aa2dd560ea',
     messagingSenderId: '675110412127',
     projectId: 'smart-paint-shop',
+    databaseURL: 'https://smart-paint-shop-default-rtdb.firebaseio.com',
     storageBucket: 'smart-paint-shop.firebasestorage.app',
     iosClientId: '675110412127-q9ftnkfk5g16tbu9u9fg7n1rdj00esve.apps.googleusercontent.com',
     iosBundleId: 'com.example.cHp',
@@ -73,6 +76,7 @@ class DefaultFirebaseOptions {
     appId: '1:675110412127:ios:993d85bce480aa2dd560ea',
     messagingSenderId: '675110412127',
     projectId: 'smart-paint-shop',
+    databaseURL: 'https://smart-paint-shop-default-rtdb.firebaseio.com',
     storageBucket: 'smart-paint-shop.firebasestorage.app',
     iosClientId: '675110412127-q9ftnkfk5g16tbu9u9fg7n1rdj00esve.apps.googleusercontent.com',
     iosBundleId: 'com.example.cHp',
@@ -84,6 +88,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '675110412127',
     projectId: 'smart-paint-shop',
     authDomain: 'smart-paint-shop.firebaseapp.com',
+    databaseURL: 'https://smart-paint-shop-default-rtdb.firebaseio.com',
     storageBucket: 'smart-paint-shop.firebasestorage.app',
     measurementId: 'G-MWH97M0NBJ',
   );
