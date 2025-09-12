@@ -4,11 +4,11 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'firebase_options.dart';
-import 'login_page.dart';
-import 'loading_screen.dart';
-import 'onboarding_screen.dart';
-import 'home_page.dart';
+import 'auth/firebase_options.dart';
+import 'auth/login_page.dart';
+import 'widgets/loading_screen.dart';
+import 'widgets/onboarding_screen.dart';
+import 'pages/home_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
