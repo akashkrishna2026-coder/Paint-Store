@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'manager_requests_page.dart'; // <-- Renamed file
-import 'all_users_page.dart';        // <-- New file
+import 'package:iconsax/iconsax.dart';
+
+import 'all_users_page.dart';
+import '../pages/core/report_issue_page.dart'; // ⭐ FIX: Corrected the import path
 import '../product/manage_products_page.dart';
+import '../pages/manage_color_catalogue_page.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
@@ -12,7 +15,7 @@ class AdminDashboardPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text("Admin Panel", style: GoogleFonts.poppins(color: Colors.white)),
-        backgroundColor: Colors.deepOrange,
+        backgroundColor: Colors.red.shade700,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       backgroundColor: Colors.grey[100],
@@ -23,47 +26,36 @@ class AdminDashboardPage extends StatelessWidget {
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
           children: [
-            // UPDATED CARD
             _buildDashboardCard(
               context: context,
-              icon: Icons.person_add_alt_1,
-              title: 'Manager Requests',
+              icon: Iconsax.flag,
+              title: 'View Reports',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ManageUsersPage()), // This is your original page, now renamed
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const ViewReportsPage()));
               },
             ),
-            // NEW CARD
             _buildDashboardCard(
               context: context,
               icon: Icons.people_alt,
               title: 'All Users',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AllUsersPage()),
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AllUsersPage()));
               },
             ),
             _buildDashboardCard(
               context: context,
-              icon: Icons.inventory,
+              icon: Iconsax.box,
               title: 'Manage Products',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ManageProductsPage()),
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageProductsPage()));
               },
             ),
             _buildDashboardCard(
               context: context,
-              icon: Icons.bar_chart,
-              title: 'Analytics',
+              icon: Iconsax.color_swatch,
+              title: 'Manage Catalogue',
               onTap: () {
-                // TODO: Navigate to Analytics Page
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageColorCataloguePage()));
               },
             ),
           ],
@@ -78,9 +70,10 @@ class AdminDashboardPage extends StatelessWidget {
     required String title,
     required VoidCallback onTap,
   }) {
-    // ... Card widget code remains the same
     return Card(
-      elevation: 4,
+      elevation: 2,
+      // ⭐ UI: Added a subtle shadow color
+      shadowColor: Colors.red.shade100,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: onTap,
@@ -88,7 +81,7 @@ class AdminDashboardPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 48, color: Colors.deepOrange),
+            Icon(icon, size: 48, color: Colors.red.shade700),
             const SizedBox(height: 12),
             Text(
               title,

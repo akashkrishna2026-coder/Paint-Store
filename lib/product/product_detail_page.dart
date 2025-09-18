@@ -1,19 +1,56 @@
+// lib/product/product_detail_page.dart
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
+import '../model/product_model.dart'; // ⭐ USE THE PRODUCT MODEL
 
 class ProductDetailPage extends StatelessWidget {
-  final Map<String, dynamic> product;
+  final Product product; // ⭐ USE THE PRODUCT MODEL
 
   const ProductDetailPage({super.key, required this.product});
 
+  // ⭐ ADD TO CART LOGIC
+  Future<void> _addToCart(BuildContext context) async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to add items to your cart.")),
+      );
+      return;
+    }
+
+    final cartRef = FirebaseDatabase.instance.ref('users/${user.uid}/cart/${product.key}');
+
+    try {
+      final snapshot = await cartRef.get();
+      if (snapshot.exists) {
+        // If item exists, increment quantity
+        int currentQuantity = (snapshot.value as Map)['quantity'] ?? 0;
+        await cartRef.update({'quantity': currentQuantity + 1});
+      } else {
+        // If item doesn't exist, set it with quantity 1
+        await cartRef.set({
+          'name': product.name,
+          'price': product.price,
+          'imageUrl': product.imageUrl,
+          'quantity': 1,
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("${product.name} added to cart!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to add to cart: $e")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final String name = product['name'] ?? 'Product Name';
-    final String imageUrl = product['imageUrl'] ?? 'https://via.placeholder.com/600';
-    final String price = '₹${product['price'] ?? '0.00'}';
-    final String description = product['description'] ?? 'No description available for this product.';
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: CustomScrollView(
@@ -25,14 +62,12 @@ class ProductDetailPage extends StatelessWidget {
             iconTheme: const IconThemeData(color: Colors.white),
             flexibleSpace: FlexibleSpaceBar(
               background: Image.network(
-                imageUrl,
+                product.imageUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     color: Colors.grey.shade200,
-                    child: const Center(
-                      child: Icon(Iconsax.gallery_slash, size: 50, color: Colors.grey),
-                    ),
+                    child: const Center(child: Icon(Iconsax.gallery_slash, size: 50, color: Colors.grey)),
                   );
                 },
               ),
@@ -45,39 +80,23 @@ class ProductDetailPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
-                    style: GoogleFonts.poppins(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade800,
-                    ),
+                    product.name,
+                    style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    price,
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepOrange,
-                    ),
+                    '₹${product.price}',
+                    style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.deepOrange),
                   ),
                   const SizedBox(height: 24),
                   Text(
                     "Description",
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade700,
-                    ),
+                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    description,
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      color: Colors.grey.shade600,
-                      height: 1.6,
-                    ),
+                    product.description,
+                    style: GoogleFonts.poppins(fontSize: 15, color: Colors.grey.shade600, height: 1.6),
                   ),
                 ],
               ),
@@ -86,26 +105,19 @@ class ProductDetailPage extends StatelessWidget {
         ],
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: ElevatedButton.icon(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("$name added to cart")),
-            );
-          },
+          onPressed: () => _addToCart(context), // ⭐ CALL THE FUNCTION
           icon: const Icon(Iconsax.shopping_bag, size: 20),
           label: Text("Add to Cart", style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16)),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.deepOrange,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ),
     );
   }
 }
-

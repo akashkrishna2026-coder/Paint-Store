@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
+import 'package:iconsax/iconsax.dart';
 
 class EditProductPage extends StatefulWidget {
   final String? productKey;
   final Map<String, dynamic>? productData;
 
-  // If productKey is null, it's a new product. Otherwise, we're editing.
   const EditProductPage({super.key, this.productKey, this.productData});
 
   @override
@@ -28,35 +28,40 @@ class _EditProductPageState extends State<EditProductPage> {
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
 
-  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref('products');
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  // ⭐ REMOVED: All state variables for the shades dropdown
+  // List<String> _shadeNames = [];
+  // String? _selectedShadeName;
+  // bool _isLoadingShades = true;
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill fields if we are editing an existing product
     _nameController = TextEditingController(text: widget.productData?['name'] ?? '');
     _descriptionController = TextEditingController(text: widget.productData?['description'] ?? '');
-    _priceController = TextEditingController(text: widget.productData?['price'] ?? '');
+    _priceController = TextEditingController(text: widget.productData?['price']?.toString() ?? '');
     _networkImageUrl = widget.productData?['imageUrl'];
+
+    // ⭐ REMOVED: Call to fetch shade names
+    // _fetchShadeNames();
   }
+
+  // ⭐ REMOVED: The entire method to fetch shade names is no longer needed.
+  // Future<void> _fetchShadeNames() async { ... }
 
   Future<void> _pickImage() async {
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
+      setState(() => _imageFile = File(pickedFile.path));
     }
   }
 
   Future<void> _saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
-    // An image is only required if we are adding a NEW product.
     if (_imageFile == null && widget.productKey == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an image.'), backgroundColor: Colors.redAccent),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an image.')));
       return;
     }
 
@@ -65,39 +70,44 @@ class _EditProductPageState extends State<EditProductPage> {
     try {
       String? imageUrl = _networkImageUrl;
 
-      // If a new image was selected, upload it
       if (_imageFile != null) {
-        String fileName = path.basename(_imageFile!.path);
+        String fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(_imageFile!.path)}';
         Reference storageRef = _storage.ref().child('product_images/$fileName');
-        UploadTask uploadTask = storageRef.putFile(_imageFile!);
-        TaskSnapshot snapshot = await uploadTask;
+        TaskSnapshot snapshot = await storageRef.putFile(_imageFile!);
         imageUrl = await snapshot.ref.getDownloadURL();
       }
 
+      // ⭐ REMOVED: 'shadeName' is no longer included in the product data
       final productData = {
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'price': _priceController.text.trim(),
+        'price': double.tryParse(_priceController.text.trim()) ?? 0.0,
         'imageUrl': imageUrl,
       };
 
       if (widget.productKey == null) {
-        // ADD new product
-        await _dbRef.push().set(productData);
+        await _dbRef.child('products').push().set(productData);
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product added successfully')));
       } else {
-        // UPDATE existing product
-        await _dbRef.child(widget.productKey!).update(productData);
+        await _dbRef.child('products/${widget.productKey!}').update(productData);
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product updated successfully')));
       }
 
-      if(mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
 
     } catch (error) {
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save product: $error')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save product: $error')));
     } finally {
-      if(mounted) setState(() => _isUploading = false);
+      if (mounted) setState(() => _isUploading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    super.dispose();
   }
 
   @override
@@ -120,42 +130,65 @@ class _EditProductPageState extends State<EditProductPage> {
                 child: Container(
                   height: 200,
                   width: double.infinity,
-                  decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
                   child: _imageFile != null
-                      ? Image.file(_imageFile!, fit: BoxFit.cover)
-                      : (_networkImageUrl != null
-                      ? Image.network(_networkImageUrl!, fit: BoxFit.cover)
-                      : const Center(child: Icon(Icons.add_a_photo, size: 50, color: Colors.grey))),
+                      ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(_imageFile!, fit: BoxFit.cover))
+                      : (_networkImageUrl != null && _networkImageUrl!.isNotEmpty
+                      ? ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(_networkImageUrl!, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Iconsax.gallery_slash, size: 40, color: Colors.grey)))
+                      : Center(child: Icon(Iconsax.gallery_add, size: 50, color: Colors.grey.shade600))),
                 ),
               ),
               const SizedBox(height: 24),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Product Name', border: OutlineInputBorder()),
-                validator: (value) => value!.isEmpty ? 'Please enter a name' : null,
+                validator: (value) => value == null || value.isEmpty ? 'Product name is required.' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
-                maxLines: 3,
-                validator: (value) => value!.isEmpty ? 'Please enter a description' : null,
+                decoration: const InputDecoration(labelText: 'Product Description', border: OutlineInputBorder()),
+                maxLines: 4,
+                validator: (value) => value == null || value.isEmpty ? 'Description is required.' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _priceController,
-                decoration: const InputDecoration(labelText: 'Price', border: OutlineInputBorder()),
-                keyboardType: TextInputType.number,
-                validator: (value) => value!.isEmpty ? 'Please enter a price' : null,
+                decoration: const InputDecoration(labelText: 'Price', border: OutlineInputBorder(), prefixText: '₹'),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Price is required.';
+                  }
+                  if (double.tryParse(value) == null) {
+                    return 'Please enter a valid number.';
+                  }
+                  return null;
+                },
               ),
+
+              // ⭐ REMOVED: The color shade dropdown menu is gone
               const SizedBox(height: 32),
-              _isUploading
-                  ? const Center(child: CircularProgressIndicator(color: Colors.teal))
-                  : ElevatedButton.icon(
-                onPressed: _saveProduct,
-                icon: const Icon(Icons.save),
-                label: Text(isEditing ? 'Update Product' : 'Add Product'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16)),
+
+              SizedBox(
+                width: double.infinity,
+                child: _isUploading
+                    ? const Center(child: CircularProgressIndicator(color: Colors.teal))
+                    : ElevatedButton.icon(
+                  onPressed: _saveProduct,
+                  icon: const Icon(Iconsax.save_21),
+                  label: Text(isEditing ? 'Update Product' : 'Add Product'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
             ],
           ),

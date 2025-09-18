@@ -29,6 +29,10 @@ dependencies:
   image_picker: ^1.0.7
   iconsax: ^0.0.8
   fluttertoast: ^8.2.1
+  http: ^1.2.1
+  flutter_colorpicker: ^1.1.0
+  cached_network_image: ^3.3.1
+  
 
 dev_dependencies:
   flutter_test:
@@ -48,10 +52,10 @@ flutter:
     - assets/onboard1.jpeg
     - assets/onboard3.jpeg
     - assets/logo.jpeg
-    - assets/premium.png
-    - assets/budget.png
-    - assets/eco.png
     - assets/google.png
     - assets/color1.jpeg
     - assets/color2.jpeg
     - assets/color3.jpeg
+    - assets/delivery1.png
+    - assets/delivery2.png
+    - assets/delivery3.png

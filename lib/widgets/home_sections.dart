@@ -1,9 +1,10 @@
-//All the other static content sections (Hero, Collections, Testimonials, Contact, etc.) have been grouped together into their own file as simple, efficient StatelessWidgets.
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../product/explore_product.dart';
+// ⭐ ADD IMPORTS for the new pages
+import '../pages/free_delivery_info_page.dart';
+import '../pages/painting_services_page.dart';
 
 class SectionTitle extends StatelessWidget {
   final String title;
@@ -23,7 +24,6 @@ class SectionTitle extends StatelessWidget {
 
 class HeroSection extends StatelessWidget {
   const HeroSection({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -38,17 +38,9 @@ class HeroSection extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(
-            "Transforming Spaces with Color",
-            style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-            textAlign: TextAlign.center,
-          ),
+          Text("Transforming Spaces with Color", style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white), textAlign: TextAlign.center),
           const SizedBox(height: 10),
-          Text(
-            "Premium quality paints for your home and business",
-            style: GoogleFonts.poppins(fontSize: 16, color: Colors.white70),
-            textAlign: TextAlign.center,
-          ),
+          Text("Premium quality paints for your home and business", style: GoogleFonts.poppins(fontSize: 16, color: Colors.white70), textAlign: TextAlign.center),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExploreProductPage())),
@@ -67,68 +59,6 @@ class HeroSection extends StatelessWidget {
   }
 }
 
-class HorizontalListSection extends StatelessWidget {
-  final List<Map<String, String>> items;
-  const HorizontalListSection({super.key, required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    return SizedBox(
-      height: 200,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
-        itemBuilder: (context, index) {
-          double cardWidth = screenWidth * 0.45;
-          final item = items[index];
-          return Container(
-            width: cardWidth,
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(15), color: Colors.white, boxShadow: [
-              BoxShadow(color: Colors.orange.shade100, blurRadius: 8, offset: const Offset(2, 4)),
-            ]),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                  child: Image.asset(
-                    item["image"]!,
-                    height: 120,
-                    width: cardWidth,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 120,
-                      width: cardWidth,
-                      color: Colors.grey.shade300,
-                      child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(item["title"]!, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16)),
-                      if (item["subtitle"] != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4.0),
-                          child: Text(item["subtitle"]!, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade700)),
-                        ),
-                    ]),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
 class FeaturesSection extends StatelessWidget {
   const FeaturesSection({super.key});
 
@@ -138,31 +68,55 @@ class FeaturesSection extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Wrap(spacing: 16, runSpacing: 16, children: [
         _buildFeatureItem(context, icon: Icons.verified_user, title: "Quality Assurance", description: "All our paints undergo rigorous quality testing"),
-        _buildFeatureItem(context, icon: Icons.local_shipping, title: "Free Delivery", description: "Free delivery on orders above ₹2000"),
-        _buildFeatureItem(context, icon: Icons.color_lens, title: "Color Consultation", description: "Expert advice to choose perfect colors"),
+        // ⭐ MODIFIED: Updated text and added onTap
+        _buildFeatureItem(
+          context,
+          icon: Icons.local_shipping,
+          title: "Free Delivery",
+          description: "Free delivery available within a 50km radius",
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FreeDeliveryInfoPage())),
+        ),
+        // ⭐ MODIFIED: Renamed and added onTap
+        _buildFeatureItem(
+          context,
+          icon: Icons.color_lens,
+          title: "Painting Services",
+          description: "Expert advice and professional services",
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaintingServicesPage())),
+        ),
         _buildFeatureItem(context, icon: Icons.eco, title: "Eco-Friendly", description: "Low VOC paints for healthier living"),
       ]),
     );
   }
 
-  Widget _buildFeatureItem(BuildContext context, {required IconData icon, required String title, required String description}) {
-    return Container(
-      width: (MediaQuery.of(context).size.width - 48) / 2,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [
-        BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2)),
-      ]),
-      child: Column(children: [
-        Icon(icon, color: Colors.deepOrange, size: 32),
-        const SizedBox(height: 8),
-        Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14)),
-        const SizedBox(height: 4),
-        Text(description, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600), textAlign: TextAlign.center),
-      ]),
+  // ⭐ MODIFIED: Added an optional onTap callback
+  Widget _buildFeatureItem(BuildContext context, {required IconData icon, required String title, required String description, VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: (MediaQuery.of(context).size.width - 48) / 2,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+          // Add a subtle border if the item is clickable
+          border: onTap != null ? Border.all(color: Colors.deepOrange.shade100) : null,
+        ),
+        child: Column(children: [
+          Icon(icon, color: Colors.deepOrange, size: 32),
+          const SizedBox(height: 8),
+          Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14)),
+          const SizedBox(height: 4),
+          Text(description, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600), textAlign: TextAlign.center),
+        ]),
+      ),
     );
   }
 }
 
+// ... (Your other sections like Testimonials, Contact, Footer remain unchanged)
 class TestimonialsSection extends StatelessWidget {
   final List<Map<String, dynamic>> testimonials;
   const TestimonialsSection({super.key, required this.testimonials});
@@ -215,7 +169,7 @@ class ContactSection extends StatelessWidget {
         BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2)),
       ]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text("Get in Touch", style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18, color: Colors.deepOrange)),
+        Text("Contact Us", style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18, color: Colors.deepOrange)),
         const SizedBox(height: 16),
         _buildContactInfoItem(Icons.location_on, "📍 Location: Kuttikkattupadi, Kerala"),
         _buildContactInfoItem(Icons.phone, "📞 Phone: +91 9744345394"),

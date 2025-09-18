@@ -15,15 +15,17 @@ class PersonalInfoPage extends StatefulWidget {
   State<PersonalInfoPage> createState() => _PersonalInfoPageState();
 }
 
-class _PersonalInfoPageState extends State<PersonalInfoPage>
-    with TickerProviderStateMixin {
+class _PersonalInfoPageState extends State<PersonalInfoPage> with TickerProviderStateMixin {
   final _auth = FirebaseAuth.instance;
   final _dbRef = FirebaseDatabase.instance.ref("users");
+
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _pincodeController = TextEditingController();
 
-  // --- CHANGED: Removed old password controller ---
+  // ⭐ SECURITY FIX: Added controller for the current password
+  final _passwordFormKey = GlobalKey<FormState>();
+  final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmNewPasswordController = TextEditingController();
 
@@ -40,34 +42,13 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
     super.initState();
     _loadUserInfo();
 
-    _pageLoadController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
+    _pageLoadController = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _pulseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
 
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
+    _slideAnimations = List.generate(6, (index) => Tween<Offset>(begin: const Offset(0, 0.6), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _pageLoadController, curve: Interval(0.1 * index, 1.0, curve: Curves.easeOutCubic))));
 
-    _slideAnimations = List.generate(
-      6, // Avatar, 3 fields, change pass button, save/cancel buttons
-          (index) => Tween<Offset>(
-        begin: const Offset(0, 0.6),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(
-        parent: _pageLoadController,
-        curve: Interval(
-          0.1 * index,
-          1.0,
-          curve: Curves.easeOutCubic,
-        ),
-      )),
-    );
-
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-        CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
-
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
     _pageLoadController.forward();
   }
 
@@ -78,7 +59,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
     _nameController.dispose();
     _emailController.dispose();
     _pincodeController.dispose();
-    // --- CHANGED: Removed old password controller ---
+    _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmNewPasswordController.dispose();
     super.dispose();
@@ -111,18 +92,15 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
       if (user != null) {
         await user.updateDisplayName(name);
         await _dbRef.child(user.uid).update({"name": name, "pincode": pincode});
-      }
-      if (_selectedImage != null) {
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child("profile_pictures")
-            .child(user!.uid)
-            .child("profile.jpg");
-        await ref.putFile(_selectedImage!, SettableMetadata(contentType: 'image/jpeg'));
-        final url = await ref.getDownloadURL();
-        await user.updatePhotoURL(url);
-        await _dbRef.child(user.uid).update({"photoUrl": url});
-        _showToast("Profile picture updated");
+
+        if (_selectedImage != null) {
+          final ref = FirebaseStorage.instance.ref().child("profile_pictures").child(user.uid).child("profile.jpg");
+          await ref.putFile(_selectedImage!, SettableMetadata(contentType: 'image/jpeg'));
+          final url = await ref.getDownloadURL();
+          await user.updatePhotoURL(url);
+          await _dbRef.child(user.uid).update({"photoUrl": url});
+          _showToast("Profile picture updated");
+        }
       }
       _showToast("Changes saved successfully");
       if (mounted) Navigator.pop(context);
@@ -135,7 +113,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
 
   Future<void> _pickImage() async {
     try {
-      final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 70);
+      final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 800, maxHeight: 800);
       if (picked != null) setState(() => _selectedImage = File(picked.path));
     } catch (e) {
       _showToast("Cannot pick image: ${e.toString()}", isError: true);
@@ -146,12 +124,8 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
     setState(() => _isLoading = true);
     try {
       final user = _auth.currentUser;
-      if (user != null) {
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child("profile_pictures")
-            .child(user.uid)
-            .child("profile.jpg");
+      if (user != null && user.photoURL != null) {
+        final ref = FirebaseStorage.instance.refFromURL(user.photoURL!);
         await ref.delete();
         await user.updatePhotoURL(null);
         await _dbRef.child(user.uid).update({"photoUrl": null});
@@ -166,12 +140,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
   }
 
   void _showToast(String message, {bool isError = false}) {
-    Fluttertoast.showToast(
-        msg: message,
-        backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600,
-        textColor: Colors.white,
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM);
+    Fluttertoast.showToast(msg: message, backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600, textColor: Colors.white);
   }
 
   void _showAvatarOptions() {
@@ -182,30 +151,13 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
         context: context,
         backgroundColor: Colors.transparent,
         builder: (context) => Container(
-          decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
           child: SafeArea(
             child: Wrap(children: [
-              ListTile(
-                  leading: const Icon(Icons.photo_library, color: Colors.deepOrange),
-                  title: Text("Change Picture", style: GoogleFonts.poppins()),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickImage();
-                  }),
-              ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.red),
-                  title: Text("Delete Picture", style: GoogleFonts.poppins()),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _deleteProfilePicture();
-                  }),
+              ListTile(leading: const Icon(Icons.photo_library, color: Colors.deepOrange), title: Text("Change Picture", style: GoogleFonts.poppins()), onTap: () { Navigator.pop(context); _pickImage(); }),
+              ListTile(leading: const Icon(Icons.delete_outline, color: Colors.red), title: Text("Delete Picture", style: GoogleFonts.poppins()), onTap: () { Navigator.pop(context); _deleteProfilePicture(); }),
               const Divider(height: 1),
-              ListTile(
-                  leading: const Icon(Icons.close),
-                  title: Text("Cancel", style: GoogleFonts.poppins()),
-                  onTap: () => Navigator.pop(context)),
+              ListTile(leading: const Icon(Icons.close), title: Text("Cancel", style: GoogleFonts.poppins()), onTap: () => Navigator.pop(context)),
             ]),
           ),
         ),
@@ -215,92 +167,71 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
     }
   }
 
-  // --- CHANGED: Method to handle password update logic without old password ---
+  // ⭐ SECURITY FIX: This is the secure password change flow.
   Future<void> _updatePassword() async {
+    if (!_passwordFormKey.currentState!.validate()) return;
+
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final newPass = _newPasswordController.text.trim();
-    final confirmPass = _confirmNewPasswordController.text.trim();
-
-    if (newPass.isEmpty || confirmPass.isEmpty) {
-      _showToast("All password fields are required", isError: true);
-      return;
-    }
-    if (newPass != confirmPass) {
-      _showToast("New passwords do not match", isError: true);
-      return;
-    }
-    if (newPass.length < 6) {
-      _showToast("New password must be at least 6 characters", isError: true);
-      return;
-    }
-
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(); // Close the dialog first
     setState(() => _isLoading = true);
 
     try {
-      await user.updatePassword(newPass);
+      // Re-authenticate the user with their current password
+      final cred = EmailAuthProvider.credential(email: user.email!, password: _currentPasswordController.text.trim());
+      await user.reauthenticateWithCredential(cred);
+
+      // If successful, update to the new password
+      await user.updatePassword(_newPasswordController.text.trim());
       _showToast("Password updated successfully!");
+
     } on FirebaseAuthException catch (e) {
-      // This may fire if the user's session is old. Re-logging in would be required.
-      _showToast("Error: ${e.message ?? 'Could not update password.'}", isError: true);
+      String errorMessage = "An error occurred. Please try again.";
+      if (e.code == 'wrong-password') errorMessage = 'The current password you entered is incorrect.';
+      if (e.code == 'weak-password') errorMessage = 'The new password is too weak.';
+      _showToast(errorMessage, isError: true);
     } catch (e) {
       _showToast("An unexpected error occurred", isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- CHANGED: Method to show the change password dialog without old password field ---
+  // ⭐ SECURITY FIX: The dialog now includes the current password field.
   Future<void> _showChangePasswordDialog() async {
+    _currentPasswordController.clear();
     _newPasswordController.clear();
     _confirmNewPasswordController.clear();
-
-    bool obscureNew = true;
-    bool obscureConfirm = true;
 
     return showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-              child: AlertDialog(
-                backgroundColor: Colors.white.withOpacity(0.9),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                title: Text("Change Password", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildPasswordTextField(_newPasswordController, "New Password", obscureNew,
-                            () => setStateDialog(() => obscureNew = !obscureNew)),
-                    const SizedBox(height: 15),
-                    _buildPasswordTextField(_confirmNewPasswordController, "Confirm New Password", obscureConfirm,
-                            () => setStateDialog(() => obscureConfirm = !obscureConfirm)),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text("Cancel", style: GoogleFonts.poppins(color: Colors.grey.shade700)),
-                  ),
-                  ElevatedButton(
-                    onPressed: _updatePassword,
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepOrange,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
-                    ),
-                    child: Text("Update", style: GoogleFonts.poppins(color: Colors.white)),
-                  )
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.95),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text("Change Password", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+            content: Form(
+              key: _passwordFormKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(controller: _currentPasswordController, obscureText: true, decoration: const InputDecoration(labelText: 'Current Password'), validator: (v) => v!.isEmpty ? 'Required' : null),
+                  const SizedBox(height: 15),
+                  TextFormField(controller: _newPasswordController, obscureText: true, decoration: const InputDecoration(labelText: 'New Password'), validator: (v) => v!.length < 6 ? 'Min 6 characters' : null),
+                  const SizedBox(height: 15),
+                  TextFormField(controller: _confirmNewPasswordController, obscureText: true, decoration: const InputDecoration(labelText: 'Confirm New Password'), validator: (v) => v != _newPasswordController.text ? 'Passwords do not match' : null),
                 ],
               ),
-            );
-          },
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text("Cancel", style: GoogleFonts.poppins(color: Colors.grey.shade700))),
+              ElevatedButton(onPressed: _updatePassword, style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))), child: Text("Update", style: GoogleFonts.poppins(color: Colors.white))),
+            ],
+          ),
         );
       },
     );
@@ -310,33 +241,16 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
     return Container(
-      decoration: BoxDecoration(
-          gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Colors.deepOrange.shade400, Colors.orange.shade200])),
+      decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Colors.deepOrange.shade400, Colors.orange.shade200])),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         resizeToAvoidBottomInset: false,
         extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          title: Text("Edit Profile",
-              style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.bold, color: Colors.white)),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.white),
-        ),
+        appBar: AppBar(title: Text("Edit Profile", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white)), backgroundColor: Colors.transparent, elevation: 0, iconTheme: const IconThemeData(color: Colors.white)),
         body: Stack(
           children: [
-            Positioned(
-                top: -100,
-                left: -100,
-                child: _buildGlassyCircle(200, Colors.white)),
-            Positioned(
-                bottom: -120,
-                right: -150,
-                child: _buildGlassyCircle(300, Colors.white)),
+            Positioned(top: -100, left: -100, child: _buildGlassyCircle(200, Colors.white)),
+            Positioned(bottom: -120, right: -150, child: _buildGlassyCircle(300, Colors.white)),
             _isLoading
                 ? const Center(child: CircularProgressIndicator(color: Colors.white))
                 : SafeArea(
@@ -361,6 +275,9 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
       ),
     );
   }
+
+  // --- All other UI helper widgets from your original code remain here ---
+  // Note: The _buildPasswordTextField is no longer needed as the fields are now in the dialog.
 
   Widget _buildGlassyCircle(double size, Color color) {
     return Container(
@@ -412,12 +329,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
           decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withOpacity(0.9),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 20,
-                    spreadRadius: 2)
-              ]),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20, spreadRadius: 2)]),
           child: CircleAvatar(
             radius: 60,
             backgroundColor: Colors.orange.shade100,
@@ -437,17 +349,8 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
             scale: _pulseAnimation,
             child: Container(
               padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: Colors.deepOrange,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                (user?.photoURL == null && _selectedImage == null)
-                    ? Icons.add_a_photo
-                    : Icons.edit,
-                color: Colors.white,
-                size: 20,
-              ),
+              decoration: const BoxDecoration(color: Colors.deepOrange, shape: BoxShape.circle),
+              child: Icon((user?.photoURL == null && _selectedImage == null) ? Icons.add_a_photo : Icons.edit, color: Colors.white, size: 20),
             ),
           ),
         ),
@@ -455,12 +358,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
     );
   }
 
-  Widget _buildTextField(
-      {required TextEditingController controller,
-        required String label,
-        required IconData icon,
-        bool readOnly = false,
-        TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField({required TextEditingController controller, required String label, required IconData icon, bool readOnly = false, TextInputType keyboardType = TextInputType.text}) {
     return TextField(
       controller: controller,
       readOnly: readOnly,
@@ -473,30 +371,9 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
         prefixIcon: Icon(icon, color: Colors.white, size: 20),
         filled: true,
         fillColor: Colors.white.withOpacity(0.1),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: const BorderSide(color: Colors.white, width: 1.5)),
-        enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.5), width: 1)),
-      ),
-    );
-  }
-
-  Widget _buildPasswordTextField(TextEditingController controller, String label, bool obscureText, VoidCallback toggleVisibility) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: GoogleFonts.poppins(color: Colors.grey.shade700),
-        suffixIcon: IconButton(
-          icon: Icon(obscureText ? Icons.visibility_off : Icons.visibility),
-          onPressed: toggleVisibility,
-        ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.white, width: 1.5)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.white.withOpacity(0.5), width: 1)),
       ),
     );
   }
@@ -506,13 +383,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
       width: double.infinity,
       child: OutlinedButton.icon(
         icon: const Icon(Icons.lock_outline_rounded, color: Colors.white),
-        label: Text(
-          "Change Password",
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
+        label: Text("Change Password", style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white)),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 14),
           side: const BorderSide(color: Colors.white, width: 1.5),
@@ -529,16 +400,8 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
         Expanded(
           child: TextButton(
             onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text("Cancel",
-                style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white)),
+            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: Text("Cancel", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
           ),
         ),
         const SizedBox(width: 16),
@@ -549,18 +412,14 @@ class _PersonalInfoPageState extends State<PersonalInfoPage>
               padding: const EdgeInsets.symmetric(vertical: 15),
               backgroundColor: Colors.white,
               foregroundColor: Colors.deepOrange,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               elevation: 8,
               shadowColor: Colors.black.withOpacity(0.3),
             ),
-            child: Text("Save",
-                style: GoogleFonts.poppins(
-                    fontSize: 16, fontWeight: FontWeight.w600)),
+            child: Text("Save", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
           ),
         ),
       ],
     );
   }
 }
-

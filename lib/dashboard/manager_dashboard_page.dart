@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-import 'manage_inventory_page.dart'; // ⭐ IMPORT THE NEW PAGE ⭐
-
-// Import other pages as you build them
-// import 'view_orders_page.dart';
+import 'package:iconsax/iconsax.dart';
+import 'manage_inventory_page.dart';
+import '../pages/painters_management_page.dart'; // ⭐ IMPORT THE NEW CONSOLIDATED PAGE
 
 class ManagerDashboardPage extends StatelessWidget {
   const ManagerDashboardPage({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text("Manager Panel", style: GoogleFonts.poppins(color: Colors.white)),
-        backgroundColor: Colors.teal,
+        backgroundColor: Colors.pink.shade600,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       backgroundColor: Colors.grey[100],
@@ -27,39 +24,28 @@ class ManagerDashboardPage extends StatelessWidget {
           children: [
             _buildDashboardCard(
               context: context,
-              icon: Icons.receipt_long,
-              title: 'View Orders',
-              onTap: () {
-                // TODO: Navigate to ViewOrdersPage
-              },
-            ),
-            // ⭐ UPDATE THIS CARD'S ONTAP ⭐
-            _buildDashboardCard(
-              context: context,
               icon: Icons.inventory_2,
               title: 'Manage Inventory',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ManageInventoryPage()),
-                );
-              },
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageInventoryPage())),
             ),
             _buildDashboardCard(
               context: context,
-              icon: Icons.group,
-              title: 'Staff Details',
-              onTap: () {
-                // TODO: Navigate to StaffDetailsPage
-              },
+              icon: Iconsax.user_edit,
+              title: 'Manage Painters',
+              // ⭐ UPDATE NAVIGATION to the new page
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaintersManagementPage())),
+            ),
+            _buildDashboardCard(
+              context: context,
+              icon: Icons.receipt_long,
+              title: 'View Orders',
+              onTap: () {},
             ),
             _buildDashboardCard(
               context: context,
               icon: Icons.assessment,
               title: 'Generate Reports',
-              onTap: () {
-                // TODO: Navigate to ReportsPage
-              },
+              onTap: () {},
             ),
           ],
         ),
@@ -67,12 +53,7 @@ class ManagerDashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDashboardCard({
-    required BuildContext context,
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildDashboardCard({required BuildContext context, required IconData icon, required String title, required VoidCallback onTap}) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -82,16 +63,9 @@ class ManagerDashboardPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 48, color: Colors.teal),
+            Icon(icon, size: 48, color: Colors.pink.shade600),
             const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
+            Text(title, textAlign: TextAlign.center, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16)),
           ],
         ),
       ),

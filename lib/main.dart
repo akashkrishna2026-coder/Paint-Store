@@ -8,7 +8,7 @@ import 'auth/firebase_options.dart';
 import 'auth/login_page.dart';
 import 'widgets/loading_screen.dart';
 import 'widgets/onboarding_screen.dart';
-import 'pages/home_page.dart';
+import 'pages/core/home_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -20,7 +20,6 @@ class _AddProductPageState extends State<AddProductPage> {
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
 
-  // State variables for image handling
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
@@ -29,20 +28,55 @@ class _AddProductPageState extends State<AddProductPage> {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // State variables for the shades dropdown
+  List<String> _shadeNames = [];
+  String? _selectedShadeName;
+  bool _isLoadingShades = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchShadeNames();
+  }
+
+  // Method to fetch all shade names from Firebase
+  Future<void> _fetchShadeNames() async {
+    try {
+      final snapshot = await _dbRef.child('colorCatalogue/shades').get();
+      if (snapshot.exists && snapshot.value != null) {
+        final Map<String, dynamic> families = Map<String, dynamic>.from(snapshot.value as Map);
+        final List<String> names = [];
+        families.forEach((familyKey, shades) {
+          final Map<String, dynamic> shadesMap = Map<String, dynamic>.from(shades as Map);
+          shadesMap.forEach((shadeKey, shadeData) {
+            final Map<String, dynamic> data = Map<String, dynamic>.from(shadeData as Map);
+            if (data['name'] != null) {
+              names.add(data['name']);
+            }
+          });
+        });
+        setState(() {
+          _shadeNames = names..sort(); // Sort them alphabetically
+          _isLoadingShades = false;
+        });
+      } else {
+        setState(() => _isLoadingShades = false);
+      }
+    } catch (e) {
+      print("Error fetching shades: $e");
+      setState(() => _isLoadingShades = false);
+    }
+  }
+
   Future<void> _pickImage() async {
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-
     if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
+      setState(() => _imageFile = File(pickedFile.path));
     }
   }
 
   Future<void> _addProduct() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
     if (_imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select an image for the product.'), backgroundColor: Colors.redAccent),
@@ -50,74 +84,43 @@ class _AddProductPageState extends State<AddProductPage> {
       return;
     }
 
-    setState(() {
-      _isUploading = true;
-    });
+    setState(() => _isUploading = true);
 
     try {
-      // --- Role-Based Security Check ---
       final user = _auth.currentUser;
-      if (user == null) {
-        throw Exception("You must be logged in to add products.");
-      }
+      if (user == null) throw Exception("You must be logged in.");
 
-      bool hasPermission = false;
+      final userRoleSnapshot = await _dbRef.child('users/${user.uid}/userType').get();
+      final userRole = userRoleSnapshot.value as String?;
 
-      // ⭐ THIS IS THE CORRECTED LOGIC ⭐
-      // First, check for the permanent admin email.
-      if (user.email == 'akashkrishna389@gmail.com') {
-        hasPermission = true;
-      } else {
-        // If not the permanent admin, check the role from the database.
-        final userRoleSnapshot = await _dbRef.child('users/${user.uid}/userType').get();
-        final userRole = userRoleSnapshot.value as String?;
-        if (userRole == 'Admin' || userRole == 'Manager') {
-          hasPermission = true;
-        }
-      }
-
-      if (!hasPermission) {
+      if (user.email != 'akashkrishna389@gmail.com' && userRole != 'Admin' && userRole != 'Manager') {
         throw Exception("You do not have permission to add products.");
       }
-      // --- End of Security Check ---
 
-
-      // 1. Upload Image to Firebase Storage
       String fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(_imageFile!.path)}';
       Reference storageRef = _storage.ref().child('product_images/$fileName');
-      UploadTask uploadTask = storageRef.putFile(_imageFile!);
-      TaskSnapshot snapshot = await uploadTask;
-
-      // 2. Get the Download URL
+      TaskSnapshot snapshot = await storageRef.putFile(_imageFile!);
       String downloadUrl = await snapshot.ref.getDownloadURL();
 
-      // 3. Save Product Data (including the new URL) to Realtime Database
+      // Add the selected shade name to the product data
       await _dbRef.child('products').push().set({
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
         'price': _priceController.text.trim(),
-        'imageUrl': downloadUrl, // Use the uploaded image's URL
+        'imageUrl': downloadUrl,
+        'shadeName': _selectedShadeName, // This links the product to the shade
       });
 
-      if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product added successfully')),
-        );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product added successfully')));
         Navigator.pop(context);
       }
-
     } catch (error) {
-      if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add product: ${error.toString()}'), backgroundColor: Colors.redAccent),
-        );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add product: ${error.toString()}')));
       }
     } finally {
-      if(mounted) {
-        setState(() {
-          _isUploading = false;
-        });
-      }
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -134,7 +137,6 @@ class _AddProductPageState extends State<AddProductPage> {
           key: _formKey,
           child: ListView(
             children: [
-              // --- Image Picker UI ---
               GestureDetector(
                 onTap: _pickImage,
                 child: Container(
@@ -161,8 +163,6 @@ class _AddProductPageState extends State<AddProductPage> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // --- Form Fields ---
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Product Name', border: OutlineInputBorder()),
@@ -182,11 +182,31 @@ class _AddProductPageState extends State<AddProductPage> {
                 keyboardType: TextInputType.number,
                 validator: (value) => value!.isEmpty ? 'Please enter a price' : null,
               ),
-              const SizedBox(height: 32),
-
-              // --- Upload Button and Progress Indicator ---
-              _isUploading
+              const SizedBox(height: 16),
+              _isLoadingShades
                   ? const Center(child: CircularProgressIndicator())
+                  : DropdownButtonFormField<String>(
+                value: _selectedShadeName,
+                decoration: const InputDecoration(
+                  labelText: 'Color Shade (Optional)',
+                  border: OutlineInputBorder(),
+                ),
+                hint: const Text('Select a shade'),
+                items: _shadeNames.map((String shadeName) {
+                  return DropdownMenuItem<String>(
+                    value: shadeName,
+                    child: Text(shadeName),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedShadeName = newValue;
+                  });
+                },
+              ),
+              const SizedBox(height: 32),
+              _isUploading
+                  ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
                   : ElevatedButton.icon(
                 onPressed: _addProduct,
                 icon: const Icon(Icons.add_shopping_cart),
@@ -207,4 +227,3 @@ class _AddProductPageState extends State<AddProductPage> {
     );
   }
 }
-

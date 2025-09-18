@@ -1,9 +1,12 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
-
-import '../product/product_detail_page.dart'; // Import the detail page
+import '../model/product_model.dart';
+import '../product/product_detail_page.dart';
 
 class SearchResultsPage extends StatefulWidget {
   final String searchQuery;
@@ -14,9 +17,11 @@ class SearchResultsPage extends StatefulWidget {
 }
 
 class _SearchResultsPageState extends State<SearchResultsPage> {
-  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref('products');
-  List<Map<String, dynamic>> _searchResults = [];
-  List<Map<String, dynamic>> _suggestedProducts = [];
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+
+  List<Product> _searchResults = [];
+  List<Product> _suggestedProducts = [];
   bool _isLoading = true;
 
   @override
@@ -25,27 +30,34 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     _fetchAndFilterProducts();
   }
 
-  // ⭐ THIS FUNCTION HAS BEEN CORRECTED TO FIX THE TYPE ERROR ⭐
   Future<void> _fetchAndFilterProducts() async {
     try {
-      final snapshot = await _dbRef.get();
-      if (snapshot.exists) {
+      final snapshot = await _dbRef.child('products').get();
+      if (snapshot.exists && snapshot.value is Map) {
         final productsMap = Map<String, dynamic>.from(snapshot.value as Map);
-        final allProducts = productsMap.values.toList();
+        final List<Product> allProducts = [];
 
-        // Ensure each item in the list is correctly cast to the expected type.
-        final typedAllProducts = allProducts.map((product) => Map<String, dynamic>.from(product as Map)).toList();
+        productsMap.forEach((key, value) {
+          try {
+            allProducts.add(Product.fromMap(key, Map<String, dynamic>.from(value)));
+          } catch (e) {
+            print('Error parsing product with key $key: $e');
+          }
+        });
 
-        final filteredProducts = typedAllProducts.where((product) {
-          final productName = (product['name'] as String?)?.toLowerCase() ?? '';
-          return productName.contains(widget.searchQuery.toLowerCase());
+        // ⭐ FIX: Updated the filter to search by product name OR shade name.
+        final filteredProducts = allProducts.where((product) {
+          final query = widget.searchQuery.toLowerCase();
+          final productNameMatch = product.name.toLowerCase().contains(query);
+          final shadeNameMatch = product.shadeName?.toLowerCase().contains(query) ?? false;
+          return productNameMatch || shadeNameMatch;
         }).toList();
 
         if (mounted) {
           setState(() {
             _searchResults = filteredProducts;
             if (_searchResults.isEmpty) {
-              _suggestedProducts = typedAllProducts.take(4).toList();
+              _suggestedProducts = allProducts.take(4).toList();
             }
             _isLoading = false;
           });
@@ -59,16 +71,49 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     }
   }
 
+  Future<void> _addToCart(Product product) async {
+    final User? user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to add items to your cart.")),
+      );
+      return;
+    }
+
+    final cartRef = _dbRef.child('users/${user.uid}/cart/${product.key}');
+
+    try {
+      final snapshot = await cartRef.get();
+      if (snapshot.exists && snapshot.value is Map) {
+        final cartData = Map<String, dynamic>.from(snapshot.value as Map);
+        int currentQuantity = cartData['quantity'] ?? 0;
+        await cartRef.update({'quantity': currentQuantity + 1});
+      } else {
+        await cartRef.set({
+          'name': product.name,
+          'price': product.price,
+          'imageUrl': product.imageUrl,
+          'quantity': 1,
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("${product.name} added to cart!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to add to cart: $e")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ⭐ THEME UPDATED HERE ⭐
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
         title: Text('Results for "${widget.searchQuery}"', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
         backgroundColor: Colors.white,
         elevation: 1,
-        shadowColor: Colors.grey.shade200,
         iconTheme: IconThemeData(color: Colors.grey.shade800),
       ),
       body: _isLoading
@@ -79,7 +124,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     );
   }
 
-  Widget _buildResultsGridView(List<Map<String, dynamic>> products) {
+  Widget _buildResultsGridView(List<Product> products) {
     return GridView.builder(
       padding: const EdgeInsets.all(16.0),
       itemCount: products.length,
@@ -90,8 +135,11 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
         childAspectRatio: 0.65,
       ),
       itemBuilder: (context, index) {
-        final product = products[index];
-        return _buildProductCard(context, product);
+        return _buildProductCard(context, products[index])
+        // ⭐ UI: Added animation to each card
+            .animate()
+            .fade(duration: 500.ms, delay: (100 * index).ms)
+            .slideY(begin: 0.2, curve: Curves.easeOut);
       },
     );
   }
@@ -102,24 +150,12 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
       children: [
         const Icon(Iconsax.search_status_1, size: 80, color: Colors.grey),
         const SizedBox(height: 16),
-        Text(
-          'No Results Found',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
-        ),
+        Text('No Results Found', textAlign: TextAlign.center, style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
-        Text(
-          'We couldn\'t find any products matching your search for "${widget.searchQuery}".',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
-        ),
+        Text('We couldn\'t find any products matching "${widget.searchQuery}".', textAlign: TextAlign.center, style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600)),
         if (_suggestedProducts.isNotEmpty) ...[
           const SizedBox(height: 40),
-          Text(
-            'You Might Also Like',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
-          ),
+          Text('You Might Also Like', textAlign: TextAlign.center, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 16),
           GridView.builder(
             shrinkWrap: true,
@@ -132,8 +168,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
               childAspectRatio: 0.65,
             ),
             itemBuilder: (context, index) {
-              final product = _suggestedProducts[index];
-              return _buildProductCard(context, product);
+              return _buildProductCard(context, _suggestedProducts[index]);
             },
           ),
         ],
@@ -141,45 +176,32 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     );
   }
 
-  Widget _buildProductCard(BuildContext context, Map<String, dynamic> product) {
-    final String title = product['name'] ?? 'No Title';
-    final String description = product['description'] ?? '';
-    final String imageUrl = product['imageUrl'] ?? '';
-    final String price = '₹${product['price'] ?? '0.00'}';
-
+  Widget _buildProductCard(BuildContext context, Product product) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => ProductDetailPage(product: product)),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailPage(product: product)));
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.deepOrange.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))]),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.network(
-                imageUrl,
+              // ⭐ UI: Using CachedNetworkImage for better performance
+              SizedBox(
                 height: 150,
                 width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 150,
-                  color: Colors.grey[200],
-                  child: const Center(child: Icon(Iconsax.gallery_slash, size: 40, color: Colors.grey)),
+                child: CachedNetworkImage(
+                  imageUrl: product.imageUrl,
+                  fit: BoxFit.cover,
+                  errorWidget: (c, e, s) => Container(
+                    color: Colors.grey[200],
+                    child: const Center(child: Icon(Iconsax.gallery_slash, size: 40, color: Colors.grey)),
+                  ),
                 ),
               ),
               Expanded(
@@ -189,48 +211,27 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            description,
-                            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                      Text(
+                        product.name,
+                        style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text(
-                            price,
-                            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepOrange),
-                          ),
+                          Text('₹${product.price.toStringAsFixed(2)}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
                           SizedBox(
                             height: 36,
                             width: 36,
                             child: ElevatedButton(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("$title added to cart")),
-                                );
-                              },
+                              onPressed: () => _addToCart(product),
                               style: ElevatedButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 backgroundColor: Colors.deepOrange,
                                 foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                               child: const Icon(Iconsax.shopping_bag, size: 18),
                             ),
@@ -248,4 +249,3 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     );
   }
 }
-
