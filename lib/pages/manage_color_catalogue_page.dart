@@ -1,12 +1,10 @@
-import 'dart:io';
+// lib/pages/manage_color_catalogue_page.dart
+
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:image_picker/image_picker.dart';
-
-import 'color_catalogue_page.dart';
 
 class ManageColorCataloguePage extends StatefulWidget {
   const ManageColorCataloguePage({super.key});
@@ -16,54 +14,53 @@ class ManageColorCataloguePage extends StatefulWidget {
 }
 
 class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> with SingleTickerProviderStateMixin {
-  // Form keys
   final _shadeFormKey = GlobalKey<FormState>();
-  final _familyFormKey = GlobalKey<FormState>();
-  final _renameFamilyFormKey = GlobalKey<FormState>(); // ⭐ NEW
+  final _categoryFormKey = GlobalKey<FormState>();
+  final _renameCategoryFormKey = GlobalKey<FormState>();
 
-  // Controllers
   final _shadeNameController = TextEditingController();
   final _shadeCodeController = TextEditingController();
-  final _familyNameController = TextEditingController();
-  final _newFamilyNameController = TextEditingController(); // ⭐ NEW
+  final _categoryNameController = TextEditingController();
+  final _newCategoryNameController = TextEditingController();
 
-  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref('colorCatalogue');
+  // ⭐ FIX: Corrected database reference to the proper path.
+  // This was pointing to 'colorCategories/colorCategories' before.
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref('colorCategories');
 
-  // State variables
   late TabController _tabController;
-  String? _selectedFamilyKey;
-  String? _familyToRenameKey; // ⭐ NEW
-  List<Map<String, dynamic>> _families = [];
+  String? _selectedCategoryKey;
+  String? _categoryToRenameKey;
+  List<String> _categories = [];
   Color _previewColor = Colors.grey.shade300;
-  File? _imageFile;
 
   @override
   void initState() {
     super.initState();
-    // ⭐ MODIFIED: Tab length is now 3
     _tabController = TabController(length: 3, vsync: this);
-    _fetchFamilies();
+    _fetchCategories();
   }
 
-  void _fetchFamilies() {
-    _dbRef.child('families').onValue.listen((event) {
+  void _fetchCategories() {
+    _dbRef.onValue.listen((event) {
       if (!mounted) return;
       if (event.snapshot.exists && event.snapshot.value is Map) {
-        final familiesData = Map<String, dynamic>.from(event.snapshot.value as Map);
-        final List<Map<String, dynamic>> loadedFamilies = [];
-        familiesData.forEach((key, value) {
-          if (value is Map && value.containsKey('name')) {
-            loadedFamilies.add({'key': key, 'name': value['name']});
+        final categoriesData = Map<String, dynamic>.from(event.snapshot.value as Map);
+        final List<String> loadedCategories = categoriesData.keys.toList();
+
+        setState(() {
+          _categories = loadedCategories;
+          if (_selectedCategoryKey == null || !_categories.contains(_selectedCategoryKey)) {
+            _selectedCategoryKey = _categories.isNotEmpty ? _categories.first : null;
+          }
+          if (_categoryToRenameKey == null || !_categories.contains(_categoryToRenameKey)) {
+            _categoryToRenameKey = _categories.isNotEmpty ? _categories.first : null;
           }
         });
+      } else {
         setState(() {
-          _families = loadedFamilies;
-          if (_selectedFamilyKey == null && _families.isNotEmpty) {
-            _selectedFamilyKey = _families.first['key'];
-          }
-          if (_familyToRenameKey == null && _families.isNotEmpty) {
-            _familyToRenameKey = _families.first['key'];
-          }
+          _categories = [];
+          _selectedCategoryKey = null;
+          _categoryToRenameKey = null;
         });
       }
     });
@@ -96,34 +93,25 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
     );
   }
 
-  Future<void> _pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (!mounted) return;
-    setState(() {
-      if (pickedFile != null) {
-        _imageFile = File(pickedFile.path);
-      }
-    });
-  }
-
   String _colorToHex(Color color) {
     return '#${color.value.toRadixString(16).substring(2).toUpperCase()}';
   }
 
   Future<void> _addShade() async {
     if (_shadeFormKey.currentState!.validate()) {
-      if (_selectedFamilyKey == null) {
+      if (_selectedCategoryKey == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a color family.'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Please select a color category.'), backgroundColor: Colors.red),
         );
         return;
       }
       try {
-        final newShadeRef = _dbRef.child('shades/$_selectedFamilyKey').push();
+        final shadeCode = _shadeCodeController.text.trim();
+        final newShadeRef = _dbRef.child('$_selectedCategoryKey/$shadeCode');
+
         await newShadeRef.set({
           'name': _shadeNameController.text.trim(),
-          'code': _shadeCodeController.text.trim(),
-          'hexCode': _colorToHex(_previewColor),
+          'hex': _colorToHex(_previewColor),
         });
 
         if (!mounted) return;
@@ -134,11 +122,7 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
         _shadeNameController.clear();
         _shadeCodeController.clear();
         setState(() {
-          _imageFile = null;
           _previewColor = Colors.grey.shade300;
-          if (_families.isNotEmpty) {
-            _selectedFamilyKey = _families.first['key'];
-          }
         });
       } catch (e) {
         if (!mounted) return;
@@ -149,65 +133,75 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
     }
   }
 
-  Future<void> _addFamily() async {
-    if (_familyFormKey.currentState!.validate()) {
+  Future<void> _addCategory() async {
+    if (_categoryFormKey.currentState!.validate()) {
       try {
-        final newFamilyRef = _dbRef.child('families').push();
-        await newFamilyRef.set({
-          'name': _familyNameController.text.trim(),
-        });
+        final newCategoryName = _categoryNameController.text.trim().toLowerCase().replaceAll(' ', '');
+        await _dbRef.child(newCategoryName).set({'_placeholder': true});
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('New family added successfully!'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('New category added successfully!'), backgroundColor: Colors.green),
         );
-        _familyFormKey.currentState!.reset();
-        _familyNameController.clear();
+        _categoryFormKey.currentState!.reset();
+        _categoryNameController.clear();
         _tabController.animateTo(0);
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add family: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Failed to add category: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  // ⭐ NEW: Function to rename a color family
-  Future<void> _renameFamily() async {
-    if (_renameFamilyFormKey.currentState!.validate()) {
-      if (_familyToRenameKey == null) {
+  Future<void> _renameCategory() async {
+    if (_renameCategoryFormKey.currentState!.validate()) {
+      if (_categoryToRenameKey == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a family to rename.'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Please select a category to rename.'), backgroundColor: Colors.red),
         );
         return;
       }
       try {
-        await _dbRef.child('families/$_familyToRenameKey').update({
-          'name': _newFamilyNameController.text.trim(),
-        });
+        final oldCategoryKey = _categoryToRenameKey!;
+        final newCategoryKey = _newCategoryNameController.text.trim().toLowerCase().replaceAll(' ', '');
+
+        final snapshot = await _dbRef.child(oldCategoryKey).get();
+        if (!snapshot.exists) {
+          throw Exception("Category to rename does not exist.");
+        }
+        final shadesData = snapshot.value;
+
+        await _dbRef.child(newCategoryKey).set(shadesData);
+        await _dbRef.child(oldCategoryKey).remove();
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Family renamed successfully!'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Category renamed successfully!'), backgroundColor: Colors.green),
         );
-        _renameFamilyFormKey.currentState!.reset();
-        _newFamilyNameController.clear();
+        _renameCategoryFormKey.currentState!.reset();
+        _newCategoryNameController.clear();
+        setState(() {
+          _categoryToRenameKey = newCategoryKey;
+        });
+
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to rename family: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Failed to rename category: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
-
 
   @override
   void dispose() {
     _tabController.dispose();
     _shadeNameController.dispose();
     _shadeCodeController.dispose();
-    _familyNameController.dispose();
-    _newFamilyNameController.dispose(); // ⭐ NEW
+    _categoryNameController.dispose();
+    _newCategoryNameController.dispose();
     super.dispose();
   }
 
@@ -216,51 +210,48 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
     return Scaffold(
       appBar: AppBar(
         title: Text("Manage Catalogue", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        // ⭐ MODIFIED: TabBar now has 3 tabs
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
             Tab(text: 'Add Shade', icon: Icon(Iconsax.color_swatch)),
-            Tab(text: 'Add Family', icon: Icon(Iconsax.folder_add)),
-            Tab(text: 'Rename Family', icon: Icon(Iconsax.edit)), // ⭐ NEW
+            Tab(text: 'Add Category', icon: Icon(Iconsax.folder_add)),
+            Tab(text: 'Rename Category', icon: Icon(Iconsax.edit)),
           ],
         ),
       ),
-      // ⭐ MODIFIED: TabBarView now has 3 children
       body: TabBarView(
         controller: _tabController,
         children: [
           SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildAddShadeForm()),
-          SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildAddFamilyForm()),
-          SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildRenameFamilyForm()), // ⭐ NEW
+          SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildAddCategoryForm()),
+          SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildRenameCategoryForm()),
         ],
       ),
     );
   }
 
   Widget _buildAddShadeForm() {
-    // This widget remains the same
     return Form(
       key: _shadeFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_families.isNotEmpty)
+          if (_categories.isNotEmpty)
             DropdownButtonFormField<String>(
-              value: _selectedFamilyKey,
-              decoration: const InputDecoration(labelText: 'Color Family', border: OutlineInputBorder()),
-              items: _families.map<DropdownMenuItem<String>>((family) {
+              value: _selectedCategoryKey,
+              decoration: const InputDecoration(labelText: 'Color Category', border: OutlineInputBorder()),
+              items: _categories.map<DropdownMenuItem<String>>((categoryName) {
                 return DropdownMenuItem<String>(
-                  value: family['key'] as String,
-                  child: Text(family['name'] as String),
+                  value: categoryName,
+                  child: Text(categoryName[0].toUpperCase() + categoryName.substring(1)),
                 );
               }).toList(),
               onChanged: (value) {
-                setState(() { _selectedFamilyKey = value; });
+                setState(() { _selectedCategoryKey = value; });
               },
             )
           else
-            const Center(child: Text("Loading families...")),
+            const Center(child: Text("No categories found. Please add a category first.")),
           const SizedBox(height: 16),
           TextFormField(
             controller: _shadeNameController,
@@ -270,7 +261,7 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
           const SizedBox(height: 16),
           TextFormField(
             controller: _shadeCodeController,
-            decoration: const InputDecoration(labelText: '4-Digit Code', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'Shade Code (e.g., 8029, K261)', border: OutlineInputBorder()),
             validator: (value) => value == null || value.isEmpty ? 'Please enter a code' : null,
           ),
           const SizedBox(height: 16),
@@ -297,22 +288,6 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
             ),
           ),
           const SizedBox(height: 20),
-          Text("Visual Reference Image (Optional)", style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 10),
-          if (_imageFile != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.file(_imageFile!, height: 200, width: double.infinity, fit: BoxFit.cover),
-            ),
-          const SizedBox(height: 10),
-          Center(
-            child: OutlinedButton.icon(
-              icon: const Icon(Iconsax.gallery_add),
-              label: Text(_imageFile == null ? 'Upload Image' : 'Change Image'),
-              onPressed: _pickImage,
-            ),
-          ),
-          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -320,7 +295,7 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
               label: const Text('Add Shade'),
               onPressed: _addShade,
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade700,
+                  backgroundColor: Colors.deepOrange,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16)),
             ),
@@ -330,29 +305,28 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
     );
   }
 
-  Widget _buildAddFamilyForm() {
-    // This widget remains the same
+  Widget _buildAddCategoryForm() {
     return Form(
-      key: _familyFormKey,
+      key: _categoryFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Create a New Color Family", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text("Create a New Color Category", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           TextFormField(
-            controller: _familyNameController,
-            decoration: const InputDecoration(labelText: 'Family Name (e.g., Blues & Greens)', border: OutlineInputBorder()),
-            validator: (value) => value == null || value.isEmpty ? 'Please enter a family name' : null,
+            controller: _categoryNameController,
+            decoration: const InputDecoration(labelText: 'Category Name (e.g., Reds)', border: OutlineInputBorder()),
+            validator: (value) => value == null || value.isEmpty ? 'Please enter a category name' : null,
           ),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               icon: const Icon(Iconsax.folder_add),
-              label: const Text('Add Family'),
-              onPressed: _addFamily,
+              label: const Text('Add Category'),
+              onPressed: _addCategory,
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade700,
+                  backgroundColor: Colors.deepOrange,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16)),
             ),
@@ -362,42 +336,37 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
     );
   }
 
-  // ⭐ NEW: Widget for the "Rename Family" form
-  Widget _buildRenameFamilyForm() {
+  Widget _buildRenameCategoryForm() {
     return Form(
-      key: _renameFamilyFormKey,
+      key: _renameCategoryFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Rename an Existing Family", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text("Rename an Existing Category", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
-          if (_families.isNotEmpty)
+          if (_categories.isNotEmpty)
             DropdownButtonFormField<String>(
-              value: _familyToRenameKey,
-              decoration: const InputDecoration(labelText: 'Select Family to Rename', border: OutlineInputBorder()),
-              items: _families.map<DropdownMenuItem<String>>((family) {
+              value: _categoryToRenameKey,
+              decoration: const InputDecoration(labelText: 'Select Category to Rename', border: OutlineInputBorder()),
+              items: _categories.map<DropdownMenuItem<String>>((categoryName) {
                 return DropdownMenuItem<String>(
-                  value: family['key'] as String,
-                  child: Text(family['name'] as String),
+                  value: categoryName,
+                  child: Text(categoryName[0].toUpperCase() + categoryName.substring(1)),
                 );
               }).toList(),
               onChanged: (value) {
                 setState(() {
-                  _familyToRenameKey = value;
-                  // Pre-fill the text field with the current name
-                  final selectedFamily = _families.firstWhere((f) => f['key'] == value, orElse: () => {});
-                  if (selectedFamily.isNotEmpty) {
-                    _newFamilyNameController.text = selectedFamily['name'];
-                  }
+                  _categoryToRenameKey = value;
+                  _newCategoryNameController.text = value ?? '';
                 });
               },
             )
           else
-            const Center(child: Text("No families to rename.")),
+            const Center(child: Text("No categories to rename.")),
           const SizedBox(height: 16),
           TextFormField(
-            controller: _newFamilyNameController,
-            decoration: const InputDecoration(labelText: 'Enter New Family Name', border: OutlineInputBorder()),
+            controller: _newCategoryNameController,
+            decoration: const InputDecoration(labelText: 'Enter New Category Name', border: OutlineInputBorder()),
             validator: (value) => value == null || value.isEmpty ? 'Please enter a new name' : null,
           ),
           const SizedBox(height: 24),
@@ -405,10 +374,10 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
             width: double.infinity,
             child: ElevatedButton.icon(
               icon: const Icon(Iconsax.edit),
-              label: const Text('Rename Family'),
-              onPressed: _renameFamily,
+              label: const Text('Rename Category'),
+              onPressed: _renameCategory,
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade700,
+                  backgroundColor: Colors.deepOrange,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16)),
             ),

@@ -1,3 +1,5 @@
+// lib/product/edit_product_page.dart
+
 import 'dart:io';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -31,10 +33,16 @@ class _EditProductPageState extends State<EditProductPage> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // ⭐ REMOVED: All state variables for the shades dropdown
-  // List<String> _shadeNames = [];
-  // String? _selectedShadeName;
-  // bool _isLoadingShades = true;
+  String? _selectedCategory;
+  String? _selectedSubCategory;
+
+  final List<String> _categories = ['Interior', 'Exterior', 'Waterproofing', 'Wood Finishes'];
+  final Map<String, List<String>> _subCategories = {
+    'Interior': ['Super Luxury', 'Luxury', 'Premium', 'Economy', 'Textures', 'Wallpapers'],
+    'Exterior': ['Ultima Exterior Emulsions', 'Apex Exterior Emulsions', 'Ace Exterior Emulsions', 'Exterior Textures'],
+    'Waterproofing': ['Terrace & Tanks', 'Interior Waterproofing', 'Exterior Waterproofing', 'Bathroom', 'Cracks & Joints'],
+    'Wood Finishes': ['General'],
+  };
 
   @override
   void initState() {
@@ -43,13 +51,17 @@ class _EditProductPageState extends State<EditProductPage> {
     _descriptionController = TextEditingController(text: widget.productData?['description'] ?? '');
     _priceController = TextEditingController(text: widget.productData?['price']?.toString() ?? '');
     _networkImageUrl = widget.productData?['imageUrl'];
-
-    // ⭐ REMOVED: Call to fetch shade names
-    // _fetchShadeNames();
+    _selectedCategory = widget.productData?['category'];
+    _selectedSubCategory = widget.productData?['subCategory'];
   }
 
-  // ⭐ REMOVED: The entire method to fetch shade names is no longer needed.
-  // Future<void> _fetchShadeNames() async { ... }
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImage() async {
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
@@ -60,8 +72,8 @@ class _EditProductPageState extends State<EditProductPage> {
 
   Future<void> _saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_imageFile == null && widget.productKey == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an image.')));
+    if (_selectedCategory == null || _selectedSubCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select categories.')));
       return;
     }
 
@@ -77,37 +89,30 @@ class _EditProductPageState extends State<EditProductPage> {
         imageUrl = await snapshot.ref.getDownloadURL();
       }
 
-      // ⭐ REMOVED: 'shadeName' is no longer included in the product data
       final productData = {
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'price': double.tryParse(_priceController.text.trim()) ?? 0.0,
+        'price': _priceController.text.trim(),
         'imageUrl': imageUrl,
+        'category': _selectedCategory,
+        'subCategory': _selectedSubCategory,
       };
 
       if (widget.productKey == null) {
         await _dbRef.child('products').push().set(productData);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product added successfully')));
       } else {
         await _dbRef.child('products/${widget.productKey!}').update(productData);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Product updated successfully')));
       }
 
-      if (mounted) Navigator.pop(context);
-
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Product ${widget.productKey == null ? 'added' : 'updated'} successfully')));
+        Navigator.pop(context);
+      }
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save product: $error')));
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    _priceController.dispose();
-    super.dispose();
   }
 
   @override
@@ -146,34 +151,55 @@ class _EditProductPageState extends State<EditProductPage> {
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Product Name', border: OutlineInputBorder()),
-                validator: (value) => value == null || value.isEmpty ? 'Product name is required.' : null,
+                validator: (value) => value!.isEmpty ? 'Product name is required.' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(labelText: 'Product Description', border: OutlineInputBorder()),
                 maxLines: 4,
-                validator: (value) => value == null || value.isEmpty ? 'Description is required.' : null,
+                validator: (value) => value!.isEmpty ? 'Description is required.' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _priceController,
                 decoration: const InputDecoration(labelText: 'Price', border: OutlineInputBorder(), prefixText: '₹'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Price is required.';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Please enter a valid number.';
-                  }
-                  return null;
-                },
+                validator: (value) => value!.isEmpty ? 'Price is required.' : null,
               ),
-
-              // ⭐ REMOVED: The color shade dropdown menu is gone
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                hint: const Text('Select Category'),
+                items: _categories.map((String category) {
+                  return DropdownMenuItem<String>(value: category, child: Text(category));
+                }).toList(),
+                onChanged: (newValue) {
+                  setState(() {
+                    _selectedCategory = newValue;
+                    _selectedSubCategory = null;
+                  });
+                },
+                validator: (value) => value == null ? 'Please select a category' : null,
+              ),
+              const SizedBox(height: 16),
+              if (_selectedCategory != null)
+                DropdownButtonFormField<String>(
+                  value: _selectedSubCategory,
+                  decoration: const InputDecoration(labelText: 'Sub-Category', border: OutlineInputBorder()),
+                  hint: const Text('Select Sub-Category'),
+                  items: _subCategories[_selectedCategory]!.map((String subCategory) {
+                    return DropdownMenuItem<String>(value: subCategory, child: Text(subCategory));
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedSubCategory = newValue;
+                    });
+                  },
+                  validator: (value) => value == null ? 'Please select a sub-category' : null,
+                ),
               const SizedBox(height: 32),
-
               SizedBox(
                 width: double.infinity,
                 child: _isUploading

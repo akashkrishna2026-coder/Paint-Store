@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import '../admin/admin_dashboard_page.dart';
-import '../dashboard/manager_dashboard_page.dart';
+import '../manager/manager_dashboard_page.dart';
 import '../auth/personal_info_page.dart';
 import '../pages/core/home_page.dart';
 

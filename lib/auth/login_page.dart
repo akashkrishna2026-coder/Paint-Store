@@ -7,7 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:iconsax/iconsax.dart';
 
-import 'firebase_options.dart';
+import '../firebase_options.dart';
 import '../pages/core/home_page.dart';
 import 'register_page.dart';
 

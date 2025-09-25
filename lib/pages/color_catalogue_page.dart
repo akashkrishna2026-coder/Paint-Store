@@ -2,13 +2,15 @@
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../model/product_model.dart';
 import '../product/product_detail_page.dart';
 
-// Helper to convert hex strings to Color objects (with error handling)
+// Helper to convert hex strings to Color objects
 Color hexToColor(String code) {
   try {
     final hex = code.replaceAll('#', '');
@@ -33,117 +35,214 @@ class ColorCataloguePage extends StatefulWidget {
 }
 
 class _ColorCataloguePageState extends State<ColorCataloguePage> {
-  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref('colorCatalogue');
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref('colorCategories');
+
+  // State variables for managing filters and shades
+  List<Map<String, String>> _allShades = [];
+  List<String> _categories = [];
+  String _selectedCategory = 'All';
+
+  // ⭐ OPTIMIZATION: Use a Future for a one-time data fetch
+  late final Future<void> _loadCatalogueFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCatalogueFuture = _fetchAndParseData();
+  }
+
+  // ⭐ OPTIMIZATION: This method now fetches the data only once when the page loads.
+  Future<void> _fetchAndParseData() async {
+    final snapshot = await _dbRef.get();
+    if (mounted && snapshot.exists && snapshot.value is Map) {
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final List<Map<String, String>> allShades = [];
+      final Set<String> categories = {'All'};
+
+      data.forEach((categoryKey, shadesData) {
+        final categoryName = categoryKey[0].toUpperCase() + categoryKey.substring(1);
+        categories.add(categoryName);
+
+        if (shadesData is Map) {
+          final familyShadesMap = Map<String, dynamic>.from(shadesData);
+          familyShadesMap.forEach((shadeCode, shadeDetails) {
+            if (shadeDetails is Map) {
+              final shade = Map<String, dynamic>.from(shadeDetails);
+              allShades.add({
+                'category': categoryName,
+                'code': shadeCode,
+                'name': shade['name']?.toString() ?? 'Unnamed',
+                'hex': shade['hex']?.toString() ?? '#FFFFFF',
+              });
+            }
+          });
+        }
+      });
+
+      // Update state after all data is processed
+      setState(() {
+        _categories = categories.toList()..sort((a, b) {
+          if (a == 'All') return -1; // Keep "All" at the beginning
+          if (b == 'All') return 1;
+          return a.compareTo(b);
+        });
+        _allShades = allShades;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Filter the shades based on the selected category
+    final filteredShades = _selectedCategory == 'All'
+        ? _allShades
+        : _allShades.where((shade) => shade['category'] == _selectedCategory).toList();
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text("Color Catalogue", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
         backgroundColor: Colors.white,
         elevation: 1,
-        shadowColor: Colors.grey.shade200,
         iconTheme: IconThemeData(color: Colors.grey.shade800),
       ),
-      body: StreamBuilder<DatabaseEvent>(
-        stream: _dbRef.onValue,
+      // ⭐ OPTIMIZATION: Use a FutureBuilder to handle the one-time fetch.
+      body: FutureBuilder(
+        future: _loadCatalogueFuture,
         builder: (context, snapshot) {
+          // Show a loading indicator while fetching data
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
           }
-          if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
+          // Show an error message if something went wrong
+          if (snapshot.hasError) {
+            return const Center(child: Text("Could not load catalogue. Please try again later."));
+          }
+          // Show a message if no colors are in the database
+          if (_allShades.isEmpty) {
             return const Center(child: Text("Color catalogue is empty."));
           }
 
-          if (snapshot.data!.snapshot.value is! Map) {
-            return const Center(child: Text("Invalid data format from Firebase."));
-          }
-
-          final data = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
-          final familiesData = data['families'] is Map ? Map<String, dynamic>.from(data['families']) : <String, dynamic>{};
-          final allShadesData = data['shades'] is Map ? Map<String, dynamic>.from(data['shades']) : <String, dynamic>{};
-
-          final families = familiesData.entries.map((e) {
-            final value = e.value is Map ? Map<String, dynamic>.from(e.value) : <String, dynamic>{};
-            return {'key': e.key, ...value};
-          }).toList();
-
-          if (families.isEmpty) {
-            return const Center(child: Text("No color families found."));
-          }
-
-          // ⭐ REMOVED the Column and Visualizer Banner. This ListView is now the main body.
-          return ListView.builder(
-            padding: const EdgeInsets.only(top: 8),
-            itemCount: families.length,
-            itemBuilder: (context, index) {
-              final family = families[index];
-              final familyKey = family['key'] as String;
-              final familyName = family['name'] as String? ?? 'Unnamed Family';
-
-              final List<Map<String, String>> shades = [];
-              if (allShadesData.containsKey(familyKey) && allShadesData[familyKey] is Map) {
-                final familyShadesMap = Map<String, dynamic>.from(allShadesData[familyKey]);
-                familyShadesMap.forEach((shadeKey, shadeValue) {
-                  if (shadeValue is Map) {
-                    shades.add(Map<String, String>.from(shadeValue.map((k, v) => MapEntry(k.toString(), v.toString()))));
-                  }
-                });
-              }
-              return _ColorFamilySection(
-                familyName: familyName,
-                shades: shades,
-              );
-            },
+          // Build the main UI once the data is ready
+          return Column(
+            children: [
+              _buildFilterBar(),
+              Expanded(
+                child: _buildShadesGrid(filteredShades),
+              ),
+            ],
           );
         },
       ),
     );
   }
-}
 
-class _ColorFamilySection extends StatelessWidget {
-  final String familyName;
-  final List<Map<String, String>> shades;
-  const _ColorFamilySection({required this.familyName, required this.shades});
-  @override
-  Widget build(BuildContext context) {
-    if (shades.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 0, 8),
+  // Widget for the horizontal filter bar (no changes needed)
+  Widget _buildFilterBar() {
+    if (_categories.length <= 1) return const SizedBox.shrink();
+
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _categories.length,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final bool isSelected = category == _selectedCategory;
+          return Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: ChoiceChip(
+              label: Text(category),
+              selected: isSelected,
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() {
+                    _selectedCategory = category;
+                  });
+                }
+              },
+              labelStyle: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                color: isSelected ? Colors.white : Colors.deepOrange,
+              ),
+              selectedColor: Colors.deepOrange,
+              backgroundColor: Colors.deepOrange.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: Colors.deepOrange.shade100),
+              ),
+              showCheckmark: false,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Widget for the grid of color shades (optimized animation)
+  Widget _buildShadesGrid(List<Map<String, String>> shades) {
+    if (shades.isEmpty && _selectedCategory != 'All') {
+      return const Center(child: Text("No shades found in this category."));
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16.0),
+      itemCount: shades.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.8,
+      ),
+      itemBuilder: (context, index) {
+        final shade = shades[index];
+        return _buildColorSwatch(context, shade);
+      },
+    ).animate().fade(duration: 400.ms, curve: Curves.easeOut); // Single animation for the whole grid
+  }
+
+  // Widget for a single color swatch in the grid (no changes needed)
+  Widget _buildColorSwatch(BuildContext context, Map<String, String> shade) {
+    final hexCode = shade['hex'] ?? '#FFFFFF';
+    final color = hexToColor(hexCode);
+    final shadeName = shade['name'] ?? 'Unnamed';
+    final shadeCode = shade['code'] ?? '';
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ShadeDetailPage(shade: shade)),
+        );
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(familyName, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 80,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: shades.length,
-              itemBuilder: (context, index) {
-                final shade = shades[index];
-                final shadeName = shade['name'] ?? 'Unnamed';
-                final hexCode = shade['hexCode'] ?? '#FFFFFF';
-                final color = hexToColor(hexCode);
-                return GestureDetector(
-                  onTap: () {
-                    if (shade['name'] != null) {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => ProductListForShadePage(shadeName: shadeName)));
-                    }
-                  },
-                  child: Container(
-                    width: 80,
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                );
-              },
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.black.withOpacity(0.08)),
+              ),
             ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            shadeName,
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey.shade800),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            shadeCode,
+            style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 11),
           ),
         ],
       ),
@@ -151,14 +250,79 @@ class _ColorFamilySection extends StatelessWidget {
   }
 }
 
-//==============================================================================
-// ⭐ REMOVED: The entire ColorVisualizerPage class is gone.
-//==============================================================================
 
 //==============================================================================
-// INTEGRATED: Product List for Shade Page
+// Shade Detail Page (No changes needed)
 //==============================================================================
+class ShadeDetailPage extends StatelessWidget {
+  final Map<String, String> shade;
+  const ShadeDetailPage({super.key, required this.shade});
 
+  @override
+  Widget build(BuildContext context) {
+    final String shadeName = shade['name'] ?? 'Unnamed';
+    final String shadeCode = shade['code'] ?? 'N/A';
+    final Color color = hexToColor(shade['hex'] ?? '#FFFFFF');
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(shadeName, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: IconThemeData(color: Colors.grey.shade800),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Container(color: color),
+          ),
+          Container(
+            padding: const EdgeInsets.all(24.0),
+            color: Colors.white,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildDetailRow('Shade Name', shadeName),
+                const SizedBox(height: 16),
+                _buildDetailRow('Shade Code', shadeCode),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ProductListForShadePage(shadeName: shadeName)),
+                    );
+                  },
+                  child: Text('Find Products in this Shade', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade600)),
+        Text(value, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+      ],
+    );
+  }
+}
+
+//==============================================================================
+// Product List for Shade Page (No changes needed)
+//==============================================================================
 class ProductListForShadePage extends StatefulWidget {
   final String shadeName;
   const ProductListForShadePage({super.key, required this.shadeName});
@@ -175,7 +339,7 @@ class _ProductListForShadePageState extends State<ProductListForShadePage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: Text(widget.shadeName, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+        title: Text("Products in ${widget.shadeName}", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
         backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: IconThemeData(color: Colors.grey.shade800),
@@ -282,7 +446,7 @@ class _ProductListForShadePageState extends State<ProductListForShadePage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                        '₹${product.price.toStringAsFixed(2)}',
+                        '₹${product.price}',
                         style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14)
                     ),
                   ],

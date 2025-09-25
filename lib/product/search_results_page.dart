@@ -1,3 +1,5 @@
+// lib/pages/search_results_page.dart
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -45,12 +47,13 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
           }
         });
 
-        // ⭐ FIX: Updated the filter to search by product name OR shade name.
         final filteredProducts = allProducts.where((product) {
           final query = widget.searchQuery.toLowerCase();
-          final productNameMatch = product.name.toLowerCase().contains(query);
-          final shadeNameMatch = product.shadeName?.toLowerCase().contains(query) ?? false;
-          return productNameMatch || shadeNameMatch;
+          final nameMatch = product.name.toLowerCase().contains(query);
+          final categoryMatch = product.category.toLowerCase().contains(query);
+          final subCategoryMatch = product.subCategory.toLowerCase().contains(query);
+
+          return nameMatch || categoryMatch || subCategoryMatch;
         }).toList();
 
         if (mounted) {
@@ -136,7 +139,6 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
       ),
       itemBuilder: (context, index) {
         return _buildProductCard(context, products[index])
-        // ⭐ UI: Added animation to each card
             .animate()
             .fade(duration: 500.ms, delay: (100 * index).ms)
             .slideY(begin: 0.2, curve: Curves.easeOut);
@@ -191,7 +193,6 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ⭐ UI: Using CachedNetworkImage for better performance
               SizedBox(
                 height: 150,
                 width: double.infinity,
@@ -221,7 +222,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text('₹${product.price.toStringAsFixed(2)}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                          Text('₹${product.price}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
                           SizedBox(
                             height: 36,
                             width: 36,

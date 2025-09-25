@@ -4,7 +4,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'auth/firebase_options.dart';
+import 'firebase_options.dart';
 import 'auth/login_page.dart';
 import 'widgets/loading_screen.dart';
 import 'widgets/onboarding_screen.dart';

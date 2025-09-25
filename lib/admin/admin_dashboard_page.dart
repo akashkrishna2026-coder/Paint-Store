@@ -3,8 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 
 import 'all_users_page.dart';
-import '../pages/core/report_issue_page.dart'; // ⭐ FIX: Corrected the import path
+import '../pages/core/report_issue_page.dart';
 import '../product/manage_products_page.dart';
+// ⭐ FIX: This import path must exactly match the location of your file.
+// Make sure your file is saved at 'lib/pages/manage_color_catalogue_page.dart'.
 import '../pages/manage_color_catalogue_page.dart';
 
 class AdminDashboardPage extends StatelessWidget {
@@ -55,6 +57,7 @@ class AdminDashboardPage extends StatelessWidget {
               icon: Iconsax.color_swatch,
               title: 'Manage Catalogue',
               onTap: () {
+                // This line will now work correctly with the right import.
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageColorCataloguePage()));
               },
             ),
@@ -72,7 +75,6 @@ class AdminDashboardPage extends StatelessWidget {
   }) {
     return Card(
       elevation: 2,
-      // ⭐ UI: Added a subtle shadow color
       shadowColor: Colors.red.shade100,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(

@@ -1,37 +1,42 @@
+// lib/model/product_model.dart
+
 class Product {
   final String key;
   final String name;
-  final String description;
-  final double price;
+  final String? shadeName;
+  final String price;
   final String imageUrl;
-  final String? shadeName; // Optional shade name
+  final String description;
+  final String category;
+  final String subCategory;
+  final String brand;   // ⭐ ADD THIS
+  final int stock;      // ⭐ ADD THIS
 
   Product({
     required this.key,
     required this.name,
-    required this.description,
+    this.shadeName,
     required this.price,
     required this.imageUrl,
-    this.shadeName,
+    required this.description,
+    required this.category,
+    required this.subCategory,
+    required this.brand,   // ⭐ ADD THIS
+    required this.stock,   // ⭐ ADD THIS
   });
 
-  // ⭐ FIX: This factory constructor is now hardened against bad data types.
-  factory Product.fromMap(String key, Map<String, dynamic> data) {
-    // Safely parse the price, converting from String or int if necessary.
-    double parsedPrice = 0.0;
-    if (data['price'] is String) {
-      parsedPrice = double.tryParse(data['price']) ?? 0.0;
-    } else if (data['price'] is num) {
-      parsedPrice = (data['price'] as num).toDouble();
-    }
-
+  factory Product.fromMap(String key, Map<String, dynamic> map) {
     return Product(
       key: key,
-      name: data['name'] ?? 'Unnamed Product',
-      description: data['description'] ?? 'No description available.',
-      price: parsedPrice,
-      imageUrl: data['imageUrl'] ?? '',
-      shadeName: data['shadeName'],
+      name: map['name'] ?? 'No Name',
+      shadeName: map['shadeName'],
+      price: map['price']?.toString() ?? '0.00',
+      imageUrl: map['imageUrl'] ?? '',
+      description: map['description'] ?? 'No Description',
+      category: map['category'] ?? 'Uncategorized',
+      subCategory: map['subCategory'] ?? 'General',
+      brand: map['brand'] ?? 'Unbranded', // ⭐ ADD THIS
+      stock: (map['stock'] as num?)?.toInt() ?? 0, // ⭐ ADD THIS
     );
   }
 }

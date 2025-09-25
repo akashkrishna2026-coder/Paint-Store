@@ -1,8 +1,11 @@
+// lib/dashboard/manager_dashboard_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'manage_inventory_page.dart';
-import '../pages/painters_management_page.dart'; // ⭐ IMPORT THE NEW CONSOLIDATED PAGE
+import '../pages/core/stock_monitoring_page.dart'; // ⭐ 1. IMPORT THE NEW PAGE
+import '../pages/painters_management_page.dart';
 
 class ManagerDashboardPage extends StatelessWidget {
   const ManagerDashboardPage({super.key});
@@ -28,23 +31,23 @@ class ManagerDashboardPage extends StatelessWidget {
               title: 'Manage Inventory',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageInventoryPage())),
             ),
+            // ⭐ 2. NEW: "Monitor Stock" CARD
+            _buildDashboardCard(
+              context: context,
+              icon: Iconsax.chart_2,
+              title: 'Monitor Stock',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockMonitoringPage())),
+            ),
             _buildDashboardCard(
               context: context,
               icon: Iconsax.user_edit,
               title: 'Manage Painters',
-              // ⭐ UPDATE NAVIGATION to the new page
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaintersManagementPage())),
             ),
             _buildDashboardCard(
               context: context,
               icon: Icons.receipt_long,
               title: 'View Orders',
-              onTap: () {},
-            ),
-            _buildDashboardCard(
-              context: context,
-              icon: Icons.assessment,
-              title: 'Generate Reports',
               onTap: () {},
             ),
           ],
