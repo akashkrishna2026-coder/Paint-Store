@@ -1,5 +1,3 @@
-// lib/pages/search_results_page.dart
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -43,15 +41,16 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
           try {
             allProducts.add(Product.fromMap(key, Map<String, dynamic>.from(value)));
           } catch (e) {
-            print('Error parsing product with key $key: $e');
+            debugPrint('Error parsing product with key $key: $e');
           }
         });
 
         final filteredProducts = allProducts.where((product) {
           final query = widget.searchQuery.toLowerCase();
+          // Safely check nullable fields
           final nameMatch = product.name.toLowerCase().contains(query);
-          final categoryMatch = product.category.toLowerCase().contains(query);
-          final subCategoryMatch = product.subCategory.toLowerCase().contains(query);
+          final categoryMatch = (product.category ?? '').toLowerCase().contains(query);
+          final subCategoryMatch = (product.subCategory ?? '').toLowerCase().contains(query);
 
           return nameMatch || categoryMatch || subCategoryMatch;
         }).toList();
@@ -60,7 +59,9 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
           setState(() {
             _searchResults = filteredProducts;
             if (_searchResults.isEmpty) {
-              _suggestedProducts = allProducts.take(4).toList();
+              // Suggest some other products if no results are found
+              _suggestedProducts = allProducts..shuffle();
+              _suggestedProducts = _suggestedProducts.take(4).toList();
             }
             _isLoading = false;
           });
@@ -69,7 +70,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
         if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
-      print("Error searching products: $e");
+      debugPrint("Error searching products: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -92,15 +93,19 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
         int currentQuantity = cartData['quantity'] ?? 0;
         await cartRef.update({'quantity': currentQuantity + 1});
       } else {
+        // ⭐ FIX: Save cart item using the correct new data structure
         await cartRef.set({
           'name': product.name,
-          'price': product.price,
-          'imageUrl': product.imageUrl,
+          'mainImageUrl': product.mainImageUrl,
+          'packSizes': product.packSizes.asMap().map((_, p) => MapEntry(p.size.replaceAll(RegExp(r'\s+L'), 'L'), p.price)),
           'quantity': 1,
         });
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${product.name} added to cart!")),
+        SnackBar(
+          content: Text("${product.name} added to cart!"),
+          backgroundColor: Colors.green.shade600,
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -179,6 +184,9 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
   }
 
   Widget _buildProductCard(BuildContext context, Product product) {
+    // Safely get the price of the first pack size to display
+    final priceToShow = product.packSizes.isNotEmpty ? product.packSizes.first.price : 'N/A';
+
     return GestureDetector(
       onTap: () {
         Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailPage(product: product)));
@@ -196,12 +204,17 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
               SizedBox(
                 height: 150,
                 width: double.infinity,
-                child: CachedNetworkImage(
-                  imageUrl: product.imageUrl,
-                  fit: BoxFit.cover,
-                  errorWidget: (c, e, s) => Container(
-                    color: Colors.grey[200],
-                    child: const Center(child: Icon(Iconsax.gallery_slash, size: 40, color: Colors.grey)),
+                child: Hero(
+                  // Add Hero animation for smooth transition
+                  tag: 'product_image_${product.key}',
+                  child: CachedNetworkImage(
+                    // ⭐ FIX: Use mainImageUrl
+                    imageUrl: product.mainImageUrl,
+                    fit: BoxFit.cover,
+                    errorWidget: (c, e, s) => Container(
+                      color: Colors.grey[200],
+                      child: const Center(child: Icon(Iconsax.gallery_slash, size: 40, color: Colors.grey)),
+                    ),
                   ),
                 ),
               ),
@@ -222,7 +235,8 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text('₹${product.price}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                          // ⭐ FIX: Display the starting price
+                          Text('Starts at ₹$priceToShow', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
                           SizedBox(
                             height: 36,
                             width: 36,

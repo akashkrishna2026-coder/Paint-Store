@@ -1,10 +1,10 @@
-// lib/dashboard/manager_dashboard_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
-import 'manage_inventory_page.dart';
-import '../pages/core/stock_monitoring_page.dart'; // ⭐ 1. IMPORT THE NEW PAGE
+// ⭐ 1. IMPORT THE DEDICATED PAGES
+import '../product/manage_products_page.dart';
+import '../product/explore/asian/interior/textures/manage_textures_page.dart';
+import '../pages/core/stock_monitoring_page.dart';
 import '../pages/painters_management_page.dart';
 
 class ManagerDashboardPage extends StatelessWidget {
@@ -27,11 +27,18 @@ class ManagerDashboardPage extends StatelessWidget {
           children: [
             _buildDashboardCard(
               context: context,
-              icon: Icons.inventory_2,
-              title: 'Manage Inventory',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageInventoryPage())),
+              icon: Iconsax.box,
+              title: 'Manage Products',
+              // ⭐ 2. NAVIGATE TO THE DEDICATED PRODUCTS PAGE
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageProductsPage())),
             ),
-            // ⭐ 2. NEW: "Monitor Stock" CARD
+            _buildDashboardCard(
+              context: context,
+              icon: Iconsax.brush_3,
+              title: 'Manage Textures',
+              // ⭐ 3. NAVIGATE TO THE DEDICATED TEXTURES PAGE
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageTexturesPage())),
+            ),
             _buildDashboardCard(
               context: context,
               icon: Iconsax.chart_2,
@@ -43,12 +50,6 @@ class ManagerDashboardPage extends StatelessWidget {
               icon: Iconsax.user_edit,
               title: 'Manage Painters',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaintersManagementPage())),
-            ),
-            _buildDashboardCard(
-              context: context,
-              icon: Icons.receipt_long,
-              title: 'View Orders',
-              onTap: () {},
             ),
           ],
         ),

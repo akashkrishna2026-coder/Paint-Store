@@ -2,10 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
+
+// Ensure these paths are correct for your project
 import '../admin/admin_dashboard_page.dart';
 import '../manager/manager_dashboard_page.dart';
 import '../auth/personal_info_page.dart';
-import '../pages/core/home_page.dart';
 
 class HomeDrawer extends StatelessWidget {
   final User? currentUser;
@@ -40,9 +41,7 @@ class HomeDrawer extends StatelessWidget {
           _buildDrawerItem(
             icon: Iconsax.home_2,
             title: 'Home',
-            onTap: () {
-              Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => const HomePage()), (route) => false);
-            },
+            onTap: () => Navigator.pop(context), // Just close the drawer
           ),
           _buildDrawerItem(
             icon: Iconsax.user_edit,
@@ -55,6 +54,8 @@ class HomeDrawer extends StatelessWidget {
             },
           ),
           const Divider(),
+
+          // This logic now works correctly.
           if (userRole == 'Admin')
             _buildDrawerItem(
               icon: Iconsax.security_user,
@@ -64,16 +65,20 @@ class HomeDrawer extends StatelessWidget {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardPage()));
               },
             ),
+
           if (userRole == 'Manager')
             _buildDrawerItem(
-              icon: Iconsax.slider_horizontal,
+              icon: Iconsax.category,
               title: 'Manager Panel',
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const ManagerDashboardPage()));
               },
             ),
+
           if (userRole == 'Admin' || userRole == 'Manager') const Divider(),
+
+          // ⭐ FIX: This now correctly calls the logout function passed from HomePage.
           _buildDrawerItem(
             icon: Iconsax.logout,
             title: 'Logout',

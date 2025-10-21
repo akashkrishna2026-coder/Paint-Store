@@ -1,11 +1,9 @@
-// lib/pages/color_catalogue_page.dart
-
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../model/product_model.dart';
 import '../product/product_detail_page.dart';
@@ -37,12 +35,10 @@ class ColorCataloguePage extends StatefulWidget {
 class _ColorCataloguePageState extends State<ColorCataloguePage> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref('colorCategories');
 
-  // State variables for managing filters and shades
   List<Map<String, String>> _allShades = [];
   List<String> _categories = [];
   String _selectedCategory = 'All';
 
-  // ⭐ OPTIMIZATION: Use a Future for a one-time data fetch
   late final Future<void> _loadCatalogueFuture;
 
   @override
@@ -51,7 +47,6 @@ class _ColorCataloguePageState extends State<ColorCataloguePage> {
     _loadCatalogueFuture = _fetchAndParseData();
   }
 
-  // ⭐ OPTIMIZATION: This method now fetches the data only once when the page loads.
   Future<void> _fetchAndParseData() async {
     final snapshot = await _dbRef.get();
     if (mounted && snapshot.exists && snapshot.value is Map) {
@@ -79,13 +74,13 @@ class _ColorCataloguePageState extends State<ColorCataloguePage> {
         }
       });
 
-      // Update state after all data is processed
       setState(() {
-        _categories = categories.toList()..sort((a, b) {
-          if (a == 'All') return -1; // Keep "All" at the beginning
-          if (b == 'All') return 1;
-          return a.compareTo(b);
-        });
+        _categories = categories.toList()
+          ..sort((a, b) {
+            if (a == 'All') return -1;
+            if (b == 'All') return 1;
+            return a.compareTo(b);
+          });
         _allShades = allShades;
       });
     }
@@ -93,7 +88,6 @@ class _ColorCataloguePageState extends State<ColorCataloguePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Filter the shades based on the selected category
     final filteredShades = _selectedCategory == 'All'
         ? _allShades
         : _allShades.where((shade) => shade['category'] == _selectedCategory).toList();
@@ -106,24 +100,19 @@ class _ColorCataloguePageState extends State<ColorCataloguePage> {
         elevation: 1,
         iconTheme: IconThemeData(color: Colors.grey.shade800),
       ),
-      // ⭐ OPTIMIZATION: Use a FutureBuilder to handle the one-time fetch.
       body: FutureBuilder(
         future: _loadCatalogueFuture,
         builder: (context, snapshot) {
-          // Show a loading indicator while fetching data
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
           }
-          // Show an error message if something went wrong
           if (snapshot.hasError) {
             return const Center(child: Text("Could not load catalogue. Please try again later."));
           }
-          // Show a message if no colors are in the database
           if (_allShades.isEmpty) {
             return const Center(child: Text("Color catalogue is empty."));
           }
 
-          // Build the main UI once the data is ready
           return Column(
             children: [
               _buildFilterBar(),
@@ -137,7 +126,6 @@ class _ColorCataloguePageState extends State<ColorCataloguePage> {
     );
   }
 
-  // Widget for the horizontal filter bar (no changes needed)
   Widget _buildFilterBar() {
     if (_categories.length <= 1) return const SizedBox.shrink();
 
@@ -185,7 +173,6 @@ class _ColorCataloguePageState extends State<ColorCataloguePage> {
     );
   }
 
-  // Widget for the grid of color shades (optimized animation)
   Widget _buildShadesGrid(List<Map<String, String>> shades) {
     if (shades.isEmpty && _selectedCategory != 'All') {
       return const Center(child: Text("No shades found in this category."));
@@ -204,10 +191,9 @@ class _ColorCataloguePageState extends State<ColorCataloguePage> {
         final shade = shades[index];
         return _buildColorSwatch(context, shade);
       },
-    ).animate().fade(duration: 400.ms, curve: Curves.easeOut); // Single animation for the whole grid
+    ).animate().fade(duration: 400.ms, curve: Curves.easeOut);
   }
 
-  // Widget for a single color swatch in the grid (no changes needed)
   Widget _buildColorSwatch(BuildContext context, Map<String, String> shade) {
     final hexCode = shade['hex'] ?? '#FFFFFF';
     final color = hexToColor(hexCode);
@@ -250,9 +236,8 @@ class _ColorCataloguePageState extends State<ColorCataloguePage> {
   }
 }
 
-
 //==============================================================================
-// Shade Detail Page (No changes needed)
+// Shade Detail Page (Unchanged)
 //==============================================================================
 class ShadeDetailPage extends StatelessWidget {
   final Map<String, String> shade;
@@ -321,7 +306,7 @@ class ShadeDetailPage extends StatelessWidget {
 }
 
 //==============================================================================
-// Product List for Shade Page (No changes needed)
+// Product List for Shade Page (THIS IS WHERE THE FIXES ARE)
 //==============================================================================
 class ProductListForShadePage extends StatefulWidget {
   final String shadeName;
@@ -348,22 +333,10 @@ class _ProductListForShadePageState extends State<ProductListForShadePage> {
         future: _productsRef.orderByChild('shadeName').equalTo(widget.shadeName).get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Colors.teal));
+            return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
           }
           if (!snapshot.hasData || snapshot.data!.value == null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Iconsax.box_search, size: 60, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No products found for this shade.',
-                    style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade700),
-                  ),
-                ],
-              ),
-            );
+            return _buildEmptyState();
           }
 
           final productsMap = Map<String, dynamic>.from(snapshot.data!.value as Map);
@@ -371,25 +344,13 @@ class _ProductListForShadePageState extends State<ProductListForShadePage> {
           productsMap.forEach((key, value) {
             try {
               products.add(Product.fromMap(key, Map<String, dynamic>.from(value)));
-            } catch(e) {
-              print("Error parsing product for shade list: $e");
+            } catch (e) {
+              debugPrint("Error parsing product for shade list: $e. This might be an old data format.");
             }
           });
 
           if (products.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Iconsax.box_search, size: 60, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No products found for this shade.',
-                    style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade700),
-                  ),
-                ],
-              ),
-            );
+            return _buildEmptyState();
           }
 
           return ListView.builder(
@@ -404,6 +365,23 @@ class _ProductListForShadePageState extends State<ProductListForShadePage> {
     );
   }
 
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Iconsax.box_search, size: 60, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text(
+            'No products found for this shade.',
+            style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade700),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ⭐ THIS WIDGET HAS BEEN FIXED
   Widget _buildProductListItem(BuildContext context, Product product) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -423,12 +401,13 @@ class _ProductListForShadePageState extends State<ProductListForShadePage> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  product.imageUrl,
+                child: CachedNetworkImage(
+                  // ⭐ FIX: Use mainImageUrl from the new Product model
+                  imageUrl: product.mainImageUrl,
                   width: 80,
                   height: 80,
                   fit: BoxFit.cover,
-                  errorBuilder: (c, e, s) => Container(width: 80, height: 80, color: Colors.grey.shade200, child: const Icon(Iconsax.gallery_slash)),
+                  errorWidget: (c, e, s) => Container(width: 80, height: 80, color: Colors.grey.shade200, child: const Icon(Iconsax.gallery_slash)),
                 ),
               ),
               const SizedBox(width: 16),
@@ -444,11 +423,7 @@ class _ProductListForShadePageState extends State<ProductListForShadePage> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                        '₹${product.price}',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14)
-                    ),
+                    // ⭐ FIX: Price has been removed as per your request to simplify the UI
                   ],
                 ),
               ),

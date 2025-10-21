@@ -1,10 +1,12 @@
+import 'package:c_h_p/model/product_model.dart';
+import 'package:c_h_p/product/product_detail_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
-import '../../model/product_model.dart';
-import '../product_detail_page.dart';
+import 'package:lottie/lottie.dart';
+import 'package:shimmer/shimmer.dart';
 
 class ProductDisplayPage extends StatelessWidget {
   final String title;
@@ -18,9 +20,8 @@ class ProductDisplayPage extends StatelessWidget {
     this.subCategory,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    // Build the query based on the provided filters
+  // This function fetches all products and filters them based on the provided category or sub-category.
+  Future<List<Product>> _fetchProducts() async {
     Query query = FirebaseDatabase.instance.ref('products');
     if (category != null) {
       query = query.orderByChild('category').equalTo(category);
@@ -28,6 +29,26 @@ class ProductDisplayPage extends StatelessWidget {
       query = query.orderByChild('subCategory').equalTo(subCategory);
     }
 
+    final snapshot = await query.get();
+
+    if (snapshot.exists && snapshot.value != null) {
+      final productsMap = Map<String, dynamic>.from(snapshot.value as Map);
+      List<Product> products = [];
+      productsMap.forEach((key, value) {
+        try {
+          products.add(Product.fromMap(key, Map<String, dynamic>.from(value)));
+        } catch (e) {
+          debugPrint("Error parsing product in ProductDisplayPage: $e");
+        }
+      });
+      // Filter for in-stock products and sort them alphabetically
+      return products.where((p) => p.stock > 0).toList()..sort((a, b) => a.name.compareTo(b.name));
+    }
+    return []; // Return an empty list if no products are found
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
@@ -36,31 +57,20 @@ class ProductDisplayPage extends StatelessWidget {
         elevation: 1,
         iconTheme: IconThemeData(color: Colors.grey.shade800),
       ),
-      body: StreamBuilder<DatabaseEvent>(
-        stream: query.onValue,
+      body: FutureBuilder<List<Product>>(
+        future: _fetchProducts(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
+            return _buildLoadingShimmer();
           }
           if (snapshot.hasError) {
-            return const Center(child: Text("Error loading products."));
+            return Center(child: Text("Error: ${snapshot.error}"));
           }
-          if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return _buildEmptyState();
           }
 
-          final productsMap = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
-          List<Product> products = [];
-          productsMap.forEach((key, value) {
-            products.add(Product.fromMap(key, Map<String, dynamic>.from(value)));
-          });
-
-          // HIDE OUT OF STOCK: Filter the list to only show items with stock > 0
-          final inStockProducts = products.where((p) => p.stock > 0).toList();
-
-          if (inStockProducts.isEmpty) {
-            return _buildEmptyState(isOutOfStock: true);
-          }
+          final inStockProducts = snapshot.data!;
 
           return ListView.builder(
             padding: const EdgeInsets.all(16.0),
@@ -76,32 +86,50 @@ class ProductDisplayPage extends StatelessWidget {
   }
 
   Widget _buildProductListItem(BuildContext context, Product product) {
+    // Safely get the price of the first pack size to display
+    final priceToShow = product.packSizes.isNotEmpty ? product.packSizes.first.price : 'N/A';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       shadowColor: Colors.black.withOpacity(0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => ProductDetailPage(product: product)),
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => ProductDetailPage(product: product),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 300),
+            ),
           );
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: product.imageUrl,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(color: Colors.grey.shade200),
-                  errorWidget: (c, e, s) => const Icon(Iconsax.gallery_slash),
+              // ⭐ FIX: Added Hero widget for smooth image transition
+              Hero(
+                tag: 'product_image_${product.key}',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    // ⭐ FIX: Use mainImageUrl from the new Product model
+                    imageUrl: product.mainImageUrl,
+                    width: 90,
+                    height: 90,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Shimmer.fromColors(
+                      baseColor: Colors.grey.shade300,
+                      highlightColor: Colors.grey.shade100,
+                      child: Container(color: Colors.white),
+                    ),
+                    errorWidget: (c, e, s) => const Icon(Iconsax.gallery_slash),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -109,7 +137,7 @@ class ProductDisplayPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(product.name, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(product.name, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 2, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 4),
                     Text(
                       product.description,
@@ -118,9 +146,10 @@ class ProductDisplayPage extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
+                    // ⭐ FIX: Display the starting price from the pack sizes
                     Text(
-                      '₹${product.price}',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.deepOrange),
+                      'MRP  ₹$priceToShow',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.deepOrange.shade700),
                     ),
                   ],
                 ),
@@ -133,24 +162,78 @@ class ProductDisplayPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState({bool isOutOfStock = false}) {
+  Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Iconsax.box_search, size: 60, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            isOutOfStock ? "Products Temporarily Unavailable" : "No Products Found",
-            style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            isOutOfStock ? "Please check back later." : "There are no products listed in this category yet.",
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(color: Colors.grey.shade600),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Lottie.asset(
+              'assets/empty.json', // Make sure you have this file in your assets
+              width: 200,
+              height: 200,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "No Products Found",
+              style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "It seems there are no products available in this category at the moment. Please check back later!",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: 5, // Show 5 skeleton items
+        itemBuilder: (context, index) {
+          return Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(height: 20, width: double.infinity, color: Colors.white),
+                        const SizedBox(height: 8),
+                        Container(height: 14, width: double.infinity, color: Colors.white),
+                        const SizedBox(height: 4),
+                        Container(height: 14, width: 150, color: Colors.white),
+                        const SizedBox(height: 8),
+                        Container(height: 18, width: 80, color: Colors.white),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
