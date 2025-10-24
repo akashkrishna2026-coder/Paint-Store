@@ -161,7 +161,7 @@ class _UltimaPageState extends State<UltimaPage> {
                     ),
                     const SizedBox(height: 8), // Increased spacing
                     Text(
-                      'Starts at ₹$priceToShow',
+                      'MRP ₹$priceToShow',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,

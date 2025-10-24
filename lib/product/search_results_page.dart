@@ -236,7 +236,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           // ⭐ FIX: Display the starting price
-                          Text('Starts at ₹$priceToShow', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                          Text('MRP ₹$priceToShow', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
                           SizedBox(
                             height: 36,
                             width: 36,

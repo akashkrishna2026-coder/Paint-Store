@@ -117,7 +117,7 @@ class OtherProductsPage extends StatelessWidget {
               const SizedBox(width: 16),
               // ⭐ FIX: Display starting price
               Text(
-                'Starts at\n₹$priceToShow',
+                'MRP \n₹$priceToShow',
                 textAlign: TextAlign.right,
                 style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade700),
               ),

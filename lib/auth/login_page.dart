@@ -6,7 +6,6 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:iconsax/iconsax.dart';
-
 import '../firebase_options.dart';
 import '../pages/core/home_page.dart';
 import 'register_page.dart';
@@ -15,7 +14,6 @@ class LoginPage extends StatefulWidget {
   final bool showSkip;
 
   const LoginPage({super.key, this.showSkip = true});
-
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -26,13 +24,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
-
   // Animation controllers
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<Offset> _slideAnimation;
-
   final FirebaseAuth _auth = FirebaseAuth.instance;
   late final DatabaseReference _dbRef;
 
@@ -42,7 +38,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   bool _isSkipHovered = false;
   bool _isSignUpHovered = false;
   bool _isForgotHovered = false;
-
   @override
   void initState() {
     super.initState();
@@ -50,27 +45,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       app: Firebase.app(),
       databaseURL: 'https://smart-paint-shop-default-rtdb.firebaseio.com',
     ).ref();
-
     // Initialize animations
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
-
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: const Interval(0.0, 0.5, curve: Curves.easeInOut),
       ),
     );
-
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: const Interval(0.3, 0.8, curve: Curves.elasticOut),
       ),
     );
-
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.2),
       end: Offset.zero,
@@ -80,13 +71,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         curve: const Interval(0.5, 1.0, curve: Curves.easeOut),
       ),
     );
-
     _animationController.forward();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -102,7 +94,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -119,7 +110,20 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         );
       }
     } on FirebaseAuthException catch (e) {
-      _showSnackBar(e.message ?? "Login failed", Colors.redAccent);
+      // --- THIS IS THE NEW ERROR HANDLING BLOCK ---
+      String errorMessage = "Login failed. Please try again."; // Default
+      if (e.code == 'invalid-credential') {
+        errorMessage = "Incorrect email or password. Please try again.";
+      } else if (e.code == 'user-disabled') {
+        errorMessage = "This user account has been disabled.";
+      } else if (e.code == 'invalid-email') {
+        errorMessage = "The email address format is not valid.";
+      } else {
+        // A generic message for other unexpected Firebase errors
+        errorMessage = "An error occurred. Please check your connection.";
+      }
+      _showSnackBar(errorMessage, Colors.redAccent);
+      // --- END OF NEW BLOCK ---
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -144,15 +148,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
       final GoogleSignInAuthentication googleAuth =
       await googleUser.authentication;
-
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-
       final userCredential = await _auth.signInWithCredential(credential);
       final User? user = userCredential.user;
-
       if (user != null) {
         final userRef = _dbRef.child("users").child(user.uid);
         final snapshot = await userRef.get();
@@ -214,7 +215,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       await _auth.sendPasswordResetEmail(email: email);
       _showSnackBar("Password reset link sent to your email.", Colors.green);
     } on FirebaseAuthException catch (e) {
-      _showSnackBar(e.message ?? "An error occurred.", Colors.redAccent);
+      String errorMessage = "An error occurred.";
+      if (e.code == 'user-not-found') {
+        errorMessage = "No user found for that email.";
+      } else if (e.code == 'invalid-email') {
+        errorMessage = "The email address is not valid.";
+      }
+      _showSnackBar(errorMessage, Colors.redAccent);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -361,7 +368,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                               end: Alignment.bottomRight,
                             ).createShader(bounds),
                             child: Text(
-                                'Welcome Back',
+                                'Welcome',
                                 style: GoogleFonts.poppins(
                                     fontSize: 32,
                                     fontWeight: FontWeight.bold,
@@ -414,9 +421,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                               if (value == null || value.isEmpty) {
                                 return 'Please enter your password';
                               }
-                              if (value.length < 5) {
-                                return 'Password must be at least 5 characters';
+                              // --- Validation Fix from previous step ---
+                              if (value.length < 6) {
+                                return 'Password must be at least 6 characters';
                               }
+                              // --- End Fix ---
                               if (!value.contains(RegExp(r'[A-Z]'))) {
                                 return 'Password must contain an uppercase letter';
                               }

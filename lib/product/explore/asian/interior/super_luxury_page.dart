@@ -185,7 +185,7 @@ class _SuperLuxuryPageState extends State<SuperLuxuryPage> {
                       children: [
                         // ⭐ FIX: Show the starting price from the pack sizes
                         Text(
-                          'Starts at ₹$priceToShow',
+                          'MRP ₹$priceToShow',
                           style: GoogleFonts.lato(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF3A3A3A)),
                         ),
                         SizedBox(

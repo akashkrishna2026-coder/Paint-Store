@@ -66,10 +66,12 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    // --- FIX: Added missing controllers ---
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _addressController.dispose();
+    // --- END FIX ---
     _animationController.dispose();
     super.dispose();
   }
@@ -82,6 +84,7 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
     final confirm = _confirmPasswordController.text;
     final address = _addressController.text.trim();
 
+    // --- UPDATED VALIDATION BLOCK ---
     if (name.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty || address.isEmpty) {
       _showSnackBar("Please fill all fields", isError: true);
       return;
@@ -98,6 +101,28 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
       _showSnackBar("Password must be at least 6 characters", isError: true);
       return;
     }
+    // Added complex password checks to match login page
+    if (!password.contains(RegExp(r'[A-Z]'))) {
+      _showSnackBar("Password must contain an uppercase letter", isError: true);
+      return;
+    }
+    if (!password.contains(RegExp(r'[0-9]'))) {
+      _showSnackBar("Password must contain a number", isError: true);
+      return;
+    }
+    if (!password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      _showSnackBar("Password must contain a special character", isError: true);
+      return;
+    }
+    if (password.startsWith(' ')) {
+      _showSnackBar("Password cannot start with a space", isError: true);
+      return;
+    }
+    if (password.contains('  ')) {
+      _showSnackBar("Password cannot contain consecutive spaces", isError: true);
+      return;
+    }
+    // --- END OF UPDATED VALIDATION BLOCK ---
 
     setState(() => _isLoading = true);
 
@@ -142,11 +167,14 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
   }
 
   void _showSnackBar(String message, {required bool isError}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message, style: GoogleFonts.poppins(color: Colors.white)),
         backgroundColor: isError ? Colors.redAccent : Colors.green,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.all(20),
       ),
     );
   }
@@ -353,7 +381,7 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
         ),
         GestureDetector(
           onTap: () {
-            Navigator.push(
+            Navigator.pushReplacement( // Use pushReplacement for better navigation flow
               context,
               MaterialPageRoute(builder: (_) => const LoginPage()),
             );
