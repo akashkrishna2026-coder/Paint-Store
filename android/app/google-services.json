@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "675110412127",
+    "firebase_url": "https://smart-paint-shop-default-rtdb.firebaseio.com",
+    "project_id": "smart-paint-shop",
+    "storage_bucket": "smart-paint-shop.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:675110412127:android:29a374a81f1c939ed560ea",
+        "android_client_info": {
+          "package_name": "com.example.c_h_p"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "675110412127-ml0m606k2i3s4f58upimo433vml057l0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.c_h_p",
+            "certificate_hash": "f6c3be8d3a576301925f3eeeb46e8459e0511181"
+          }
+        },
+        {
+          "client_id": "675110412127-lp3c9qe5e7nkovgp59vb6r8fqclpucj9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhWdQclZWNfcCRLdJFlu_xHyGRlg4T8Yo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "675110412127-lp3c9qe5e7nkovgp59vb6r8fqclpucj9.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "675110412127-q9ftnkfk5g16tbu9u9fg7n1rdj00esve.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.cHp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,28 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "smart-paint-shop",
+          "appId": "1:675110412127:android:29a374a81f1c939ed560ea",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "smart-paint-shop",
+          "configurations": {
+            "android": "1:675110412127:android:29a374a81f1c939ed560ea",
+            "ios": "1:675110412127:ios:993d85bce480aa2dd560ea",
+            "macos": "1:675110412127:ios:993d85bce480aa2dd560ea",
+            "web": "1:675110412127:web:1dd6192135fc0e9dd560ea",
+            "windows": "1:675110412127:web:d542f153e81c0a20d560ea"
+          }
+        }
+      }
+    }
+  },
+  "emulators": {
+    "singleProjectMode": true
+  }
+}
