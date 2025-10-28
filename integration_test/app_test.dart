@@ -12,10 +12,15 @@ import 'package:c_h_p/auth/login_page.dart';
 import 'package:c_h_p/pages/core/home_page.dart';
 import 'package:c_h_p/auth/register_page.dart';
 
+// Read test credentials from environment to avoid hardcoding
+const String kTestEmail = String.fromEnvironment('TEST_EMAIL', defaultValue: '');
+const String kTestPassword = String.fromEnvironment('TEST_PASSWORD', defaultValue: '');
 
 void main() {
   // Ensure the integration test binding is initialized
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  // Only run auth-dependent tests when creds are provided
+  final bool shouldRunAuth = kTestEmail.isNotEmpty && kTestPassword.isNotEmpty;
 
   // --- Test Setup ---
   // We create robot "helpers" for each page to make our tests
@@ -34,7 +39,6 @@ void main() {
 
   // Group tests related to authentication
   group('Authentication Flow Tests', () {
-
     // Test case for successful email/password login
     testWidgets('Login with valid email and password navigates to HomePage',
             (WidgetTester tester) async {
@@ -47,16 +51,14 @@ void main() {
           await tester.pumpAndSettle();
 
           // --- Test Steps (using the robot) ---
-
-          // **** IMPORTANT: REPLACE with a REAL test account email/password ****
-          await loginRobot.enterEmail('testuser@example.com');
-          await loginRobot.enterPassword('YourValidTestPassword1!');
+          await loginRobot.enterEmail(kTestEmail);
+          await loginRobot.enterPassword(kTestPassword);
           await loginRobot.tapLoginButton();
 
           // --- Verification ---
           await homePageRobot.expectToBeOnPage();
           await loginRobot.expectToNotBeOnPage();
-        }); // End testWidgets
+        }, skip: !shouldRunAuth); // End testWidgets
 
     // Test case for login failure
     testWidgets('Login with invalid password shows correct error message', (WidgetTester tester) async {
@@ -68,7 +70,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // --- Test Steps (using the robot) ---
-      await loginRobot.enterEmail('testuser@example.com');
+      await loginRobot.enterEmail(kTestEmail.isNotEmpty ? kTestEmail : 'user@example.com');
       await loginRobot.enterPassword('invalidPassword');
       await loginRobot.tapLoginButton();
       await tester.pumpAndSettle(const Duration(seconds: 3)); // Wait for error
@@ -77,7 +79,7 @@ void main() {
       await homePageRobot.expectToNotBeOnPage();
       await loginRobot.expectToBeOnPage();
       await loginRobot.findError('Incorrect email or password. Please try again.');
-    }); // End testWidgets
+    }, skip: !shouldRunAuth); // End testWidgets
 
 
     // --- Test: Page Navigation (Login -> Register -> Login) ---

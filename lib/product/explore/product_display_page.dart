@@ -145,13 +145,31 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
   }
 
   Widget _buildProductListItem(BuildContext context, Product product, {int? index}) {
-    // Safely get the price of the first pack size to display
-    final priceToShow = product.packSizes.isNotEmpty ? product.packSizes.first.price : 'N/A';
+    // Determine a sensible starting price: use the minimum numeric price among pack sizes
+    String priceToShow = 'N/A';
+    String smallestSizeLabel = '';
+    if (product.packSizes.isNotEmpty) {
+      double? minPrice;
+      for (final ps in product.packSizes) {
+        final cleaned = ps.price.replaceAll(RegExp('[^0-9\\.]'), '');
+        final val = double.tryParse(cleaned);
+        if (val != null) {
+          if (minPrice == null || val < minPrice) minPrice = val;
+        }
+      }
+      if (minPrice != null) {
+        // Format without trailing .0
+        priceToShow = minPrice.toStringAsFixed(minPrice % 1 == 0 ? 0 : 2);
+      }
+      // Smallest size label using numericSize
+      final sortedBySize = [...product.packSizes]..sort((a, b) => a.numericSize.compareTo(b.numericSize));
+      smallestSizeLabel = sortedBySize.first.size;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
+      shadowColor: Colors.black.withAlpha(25),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () {
@@ -217,10 +235,25 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    // ⭐ FIX: Display the starting price from the pack sizes
-                    Text(
-                      'MRP  ₹$priceToShow',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.deepOrange.shade700),
+                    // Starting price and smallest pack size
+                    Row(
+                      children: [
+                        if (smallestSizeLabel.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.deepOrange.shade100),
+                            ),
+                            child: Text(smallestSizeLabel, style: GoogleFonts.poppins(fontSize: 12, color: Colors.deepOrange.shade700)),
+                          ),
+                        if (smallestSizeLabel.isNotEmpty) const SizedBox(width: 8),
+                        Text(
+                          'MRP  ₹$priceToShow',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.deepOrange.shade700),
+                        ),
+                      ],
                     ),
                   ],
                 ),

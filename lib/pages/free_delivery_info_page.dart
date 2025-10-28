@@ -32,15 +32,18 @@ class _DeliveryLocationPageState extends State<DeliveryLocationPage> {
     // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled && mounted) {
-      setState(() => _permissionStatus = 'Location services are disabled. Please enable them.');
+      setState(() => _permissionStatus =
+          'Location services are disabled. Please enable them.');
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Location services are disabled. Please enable the services')));
+          content: Text(
+              'Location services are disabled. Please enable the services')));
       return false;
     }
 
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
-      setState(() => _permissionStatus = 'Permission denied. Tap button to request.');
+      setState(() =>
+          _permissionStatus = 'Permission denied. Tap button to request.');
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied && mounted) {
         setState(() => _permissionStatus = 'Location permissions are denied.');
@@ -51,16 +54,21 @@ class _DeliveryLocationPageState extends State<DeliveryLocationPage> {
     }
 
     if (permission == LocationPermission.deniedForever && mounted) {
-      setState(() => _permissionStatus = 'Permissions denied forever. Open settings to enable.');
+      setState(() => _permissionStatus =
+          'Permissions denied forever. Open settings to enable.');
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Location permissions are permanently denied, we cannot request permissions.')));
+          content: Text(
+              'Location permissions are permanently denied, we cannot request permissions.')));
       // Optionally open app settings
       // await Geolocator.openAppSettings();
       return false;
     }
 
     // Permissions are granted
-    if(mounted) setState(() => _permissionStatus = 'Permission granted. Tap button to get location.');
+    if (mounted) {
+      setState(() => _permissionStatus =
+          'Permission granted. Tap button to get location.');
+    }
     return true;
   }
 
@@ -78,7 +86,8 @@ class _DeliveryLocationPageState extends State<DeliveryLocationPage> {
 
     try {
       Position position = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium)); // Medium accuracy is often enough for address
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+      ); // Medium accuracy is often enough for address
       if (!mounted) return; // Check after await
 
       setState(() {
@@ -86,7 +95,6 @@ class _DeliveryLocationPageState extends State<DeliveryLocationPage> {
         _permissionStatus = 'Fetching address...'; // Update status
       });
       await _getAddressFromLatLng(position);
-
     } catch (e) {
       debugPrint("Error getting location: $e");
       if (mounted) {
@@ -95,7 +103,8 @@ class _DeliveryLocationPageState extends State<DeliveryLocationPage> {
           _currentAddress = null; // Clear address on error
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not get location: ${e.toString()}', style: TextStyle(color: Colors.white)),
+          content: Text('Could not get location: ${e.toString()}',
+              style: TextStyle(color: Colors.white)),
           backgroundColor: Colors.red,
         ));
       }
@@ -107,15 +116,15 @@ class _DeliveryLocationPageState extends State<DeliveryLocationPage> {
   // Convert Lat/Lon to a readable address string
   Future<void> _getAddressFromLatLng(Position position) async {
     try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-          position.latitude, position.longitude);
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(position.latitude, position.longitude);
 
       if (placemarks.isNotEmpty && mounted) {
         Placemark place = placemarks[0];
         setState(() {
           // Construct a detailed address
           _currentAddress =
-          '${place.street ?? ''}${place.street != null ? ', ' : ''}'
+              '${place.street ?? ''}${place.street != null ? ', ' : ''}'
               '${place.subLocality ?? ''}${place.subLocality != null ? ', ' : ''}\n' // Add subLocality
               '${place.locality ?? ''}${place.locality != null ? ', ' : ''}'
               '${place.postalCode ?? ''}\n'
@@ -142,7 +151,9 @@ class _DeliveryLocationPageState extends State<DeliveryLocationPage> {
 
   // Function to proceed (needs implementation)
   void _confirmAndProceed() {
-    if (_currentAddress == null || _currentAddress!.contains("Error") || _currentAddress!.contains("Could not")) {
+    if (_currentAddress == null ||
+        _currentAddress!.contains("Error") ||
+        _currentAddress!.contains("Could not")) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Please fetch a valid delivery address first.'),
         backgroundColor: Colors.orange,
@@ -150,20 +161,19 @@ class _DeliveryLocationPageState extends State<DeliveryLocationPage> {
       return;
     }
 
-    // TODO: Implement navigation to the next step (e.g., PaymentPage)
-    // Pass the _currentAddress and potentially _currentPosition
     debugPrint("Confirmed Address: $_currentAddress");
-    debugPrint("Position: Lat: ${_currentPosition?.latitude}, Lon: ${_currentPosition?.longitude}");
+    debugPrint(
+        "Position: Lat: ${_currentPosition?.latitude}, Lon: ${_currentPosition?.longitude}");
 
     // Example Navigation (replace with your actual navigation logic):
     // Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentPage(deliveryAddress: _currentAddress!)));
 
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Address confirmed! Proceeding to next step... (Implement Navigation)'),
+      content: Text(
+          'Address confirmed! Proceeding to next step... (Implement Navigation)'),
       backgroundColor: Colors.green,
     ));
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -171,47 +181,58 @@ class _DeliveryLocationPageState extends State<DeliveryLocationPage> {
       appBar: AppBar(
         title: Text(
           "Delivery Location",
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.black87),
+          style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         backgroundColor: Colors.white,
         elevation: 1,
-        leading: IconButton( // Use a standard back button or close icon
+        leading: IconButton(
+          // Use a standard back button or close icon
           icon: const Icon(Iconsax.arrow_left_2, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Center( // Center content vertically
+      body: Center(
+        // Center content vertically
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center, // Center vertically
-            crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch buttons horizontally
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch, // Stretch buttons horizontally
             children: [
-              Icon(Iconsax.location, size: 80, color: Colors.deepOrange.shade300),
+              Icon(Iconsax.location,
+                  size: 80, color: Colors.deepOrange.shade300),
               const SizedBox(height: 24),
               Text(
                 'Confirm Your Delivery Location',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold),
+                style: GoogleFonts.poppins(
+                    fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               Text(
                 'Tap the button below to use your current location for delivery.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(fontSize: 15, color: Colors.grey.shade600),
+                style: GoogleFonts.poppins(
+                    fontSize: 15, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 32),
 
               // Button to Get Location
               ElevatedButton.icon(
                 icon: const Icon(Iconsax.location_tick),
-                label: Text('Use Current Location', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                onPressed: _isLoading ? null : _getCurrentLocation, // Disable while loading
+                label: Text('Use Current Location',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                onPressed: _isLoading
+                    ? null
+                    : _getCurrentLocation, // Disable while loading
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepOrange,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   textStyle: const TextStyle(fontSize: 16),
                 ),
               ),
@@ -223,44 +244,54 @@ class _DeliveryLocationPageState extends State<DeliveryLocationPage> {
                   decoration: BoxDecoration(
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300)
-                  ),
-                  constraints: const BoxConstraints(minHeight: 100), // Ensure minimum height
+                      border: Border.all(color: Colors.grey.shade300)),
+                  constraints: const BoxConstraints(
+                      minHeight: 100), // Ensure minimum height
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                              color: Colors.deepOrange))
                       : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _permissionStatus,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
-                      ),
-                      if (_currentAddress != null) ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          _currentAddress!,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500),
-                        ),
-                      ]
-                    ],
-                  )
-              ),
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _permissionStatus,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade700,
+                                  fontStyle: FontStyle.italic),
+                            ),
+                            if (_currentAddress != null) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                _currentAddress!,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.poppins(
+                                    fontSize: 15, fontWeight: FontWeight.w500),
+                              ),
+                            ]
+                          ],
+                        )),
               const SizedBox(height: 32),
 
               // Confirm Button (conditionally enabled)
               ElevatedButton(
-                onPressed: (_currentAddress != null && !_isLoading) ? _confirmAndProceed : null, // Enabled only if address exists and not loading
+                onPressed: (_currentAddress != null && !_isLoading)
+                    ? _confirmAndProceed
+                    : null, // Enabled only if address exists and not loading
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green.shade600,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   textStyle: const TextStyle(fontSize: 16),
-                  disabledBackgroundColor: Colors.grey.shade300, // Style for disabled state
+                  disabledBackgroundColor:
+                      Colors.grey.shade300, // Style for disabled state
                 ),
-                child: Text('Confirm Address & Proceed', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                child: Text('Confirm Address & Proceed',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
               ),
               const Spacer(), // Pushes content towards center if less content
             ],

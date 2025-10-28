@@ -28,9 +28,10 @@ class PackSize {
   }
 
   // Helper to get the numeric part of the size for sorting
-  int get numericSize {
-    // Extracts the number (e.g., 1 from "1 L", 10 from "10 L")
-    return int.tryParse(size.split(' ').first) ?? 0;
+  double get numericSize {
+    final first = size.split(' ').first;
+    final cleaned = first.replaceAll(RegExp('[^0-9.]'), '');
+    return double.tryParse(cleaned) ?? 0.0;
   }
 }
 
@@ -77,12 +78,24 @@ class Product {
     }
 
     var packSizeList = <PackSize>[];
-    if (map['packSizes'] is Map) {
-      (map['packSizes'] as Map).forEach((size, price) {
+    final rawPack = map['packSizes'] ?? map['pack_sizes'] ?? map['sizes'] ?? map['variants'];
+    if (rawPack is Map) {
+      rawPack.forEach((size, price) {
         packSizeList.add(PackSize.fromMap(size.toString(), price));
       });
-      // ⭐⭐⭐ THIS IS THE CRUCIAL SORTING STEP ⭐⭐⭐
-      // Sorts the list numerically (1L, 4L, 10L, 20L) right after parsing
+    } else if (rawPack is List) {
+      for (final item in rawPack) {
+        if (item is Map) {
+          final i = Map<String, dynamic>.from(item);
+          final size = (i['size'] ?? i['pack'] ?? i['label'] ?? '').toString();
+          final price = i['price'] ?? i['mrp'] ?? i['amount'];
+          if (size.isNotEmpty) {
+            packSizeList.add(PackSize.fromMap(size, price));
+          }
+        }
+      }
+    }
+    if (packSizeList.isNotEmpty) {
       packSizeList.sort((a, b) => a.numericSize.compareTo(b.numericSize));
     }
 
@@ -98,7 +111,7 @@ class Product {
       mainImageUrl: map['mainImageUrl'] ?? map['imageUrl'] ?? '', // Fallback for old data
       backgroundImageUrl: map['backgroundImageUrl'] ?? '',
       benefits: benefitList,
-      packSizes: packSizeList, // Assign the *already sorted* list
+      packSizes: packSizeList, // Assign the sorted list
       brochureUrl: map['brochureUrl'] ?? '',
       warrantyYears: (map['warrantyYears'] as num?)?.toInt(),
     );

@@ -175,7 +175,9 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> with TickerProvider
     final ok = await _handleLocationPermission();
     if (!ok) { setState(() => _locLoading = false); return; }
     try {
-      final pos = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium));
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+      );
       _lat = pos.latitude;
       _lng = pos.longitude;
       final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);

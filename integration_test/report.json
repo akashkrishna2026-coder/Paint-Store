@@ -1,0 +1,33 @@
+Resolving dependencies...
+Downloading packages...
+  async 2.12.0 (2.13.0 available)
+  characters 1.4.0 (1.4.1 available)
+  checked_yaml 2.0.3 (2.0.4 available)
+  crop_your_image 1.1.0 (2.0.0 available)
+  fake_async 1.3.2 (1.3.3 available)
+  file_picker 8.3.7 (10.3.3 available)
+  file_selector_macos 0.9.4+4 (0.9.4+5 available)
+! flutter_launcher_icons 0.14.4 (overridden)
+! flutter_lints 5.0.0 (overridden) (6.0.0 available)
+  flutter_plugin_android_lifecycle 2.0.31 (2.0.32 available)
+  fluttertoast 8.2.14 (9.0.0 available)
+  font_awesome_flutter 10.9.1 (10.12.0 available)
+  geolocator 13.0.4 (14.0.2 available)
+  geolocator_android 4.6.2 (5.0.2 available)
+  google_sign_in 6.3.0 (7.2.0 {"testID":1,"error":"TimeoutException after 0:12:00.000000: Test timed out after 12 minutes.","stackTrace":"package:test_api/src/backend/invoker.dart 338:28  Invoker._handleError.<fn>\ndart:async/zone.dart 1517:47                      _rootRun\ndart:async/zone.dart 1422:19                      _CustomZone.run\npackage:test_api/src/backend/invoker.dart 336:10  Invoker._handleError\npackage:test_api/src/backend/invoker.dart 291:9   Invoker.heartbeat.<fn>.<fn>\ndart:async/zone.dart 1525:13                      _rootRun\ndart:async/zone.dart 1422:19                      _CustomZone.run\npackage:test_api/src/backend/invoker.dart 290:38  Invoker.heartbeat.<fn>\ndart:async-patch/timer_patch.dart 18:15           Timer._createTimer.<fn>\ndart:isolate-patch/timer_impl.dart 410:19         _Timer._runTimers\ndart:isolate-patch/timer_impl.dart 441:5          _Timer._handleMessage\ndart:isolate-patch/isolate_patch.dart 194:12      _RawReceivePort._handleMessage\n","isFailure":false,"type":"error","time":720057}
+{"testID":1,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":720068}
+{"suite":{"id":2,"platform":"vm","path":"/home/akash/Documents/Paint-Store-backup/integration_test/app_auth_env_test.dart"},"type":"suite","time":720070}
+{"test":{"id":3,"name":"loading /home/akash/Documents/Paint-Store-backup/integration_test/app_auth_env_test.dart","suiteID":2,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":720071}
+2.2.0 available)
+  vm_service 14.3.1 (15.0.2 available)
+  webdriver 3.0.4 (3.1.0 available)
+  win32 5.13.0 (5.15.0 available)
+  xml 6.5.0 (6.6.1 available)
+Got dependencies!
+51 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":7902,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"/home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":3,"time":23,"type":"allSuites"}
+Running Gradle task 'assembleDebug'...                          

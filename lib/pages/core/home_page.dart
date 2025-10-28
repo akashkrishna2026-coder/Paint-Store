@@ -12,7 +12,7 @@ import 'package:c_h_p/product/search_results_page.dart';
 import 'package:c_h_p/widgets/featured_carousel.dart';
 import 'package:c_h_p/widgets/home_drawer.dart';
 import 'package:c_h_p/widgets/home_sections.dart';
-import 'package:c_h_p/pages/painting_services_page.dart';
+import 'package:c_h_p/pages/paint_calculator_page.dart';
 import 'package:c_h_p/pages/view_painters_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -178,7 +178,7 @@ class _HomePageState extends State<HomePage> {
     } else if (title == 'Latest Colors') {
       page = const LatestColorsPage();
     } else if (title == 'Paint Calculator') {
-      page = const PaintingServicesPage();
+      page = const PaintCalculatorPage();
     } else {
       page = const ExploreProductPage();
     }
