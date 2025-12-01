@@ -1,0 +1,58 @@
+00:00 +0: loading /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart
+Running Gradle task 'assembleDebug'...                             24.4s
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+Installing build/app/outputs/flutter-apk/app-debug.apk...           6.2s
+00:00 +0: /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart: Authentication Flow Tests Login with valid email and password navigates to HomePage
+00:00 +0 ~1: /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart: Authentication Flow Tests Login with invalid password shows correct error message
+00:00 +0 ~2: /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart: Authentication Flow Tests Navigation from Login to Register page and back
+00:52 +1 ~2: /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart: Authentication Flow Tests Login page UI elements have correct styling
+01:34 +2 ~2: /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart: (tearDownAll)
+01:35 +2 ~2: loading /home/akash/Documents/Paint-Store-backup/integration_test/app_auth_env_test.dart
+Running Gradle task 'assembleDebug'...                             24.8s
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+Installing build/app/outputs/flutter-apk/app-debug.apk...           5.2s
+02:11 +2 ~2: /home/akash/Documents/Paint-Store-backup/integration_test/app_auth_env_test.dart: Auth Flow (env-driven) Login with TEST_EMAIL/TEST_PASSWORD navigates to HomePage
+02:11 +2 ~3: /home/akash/Documents/Paint-Store-backup/integration_test/app_auth_env_test.dart: (tearDownAll)
+02:11 +2 ~3: loading /home/akash/Documents/Paint-Store-backup/integration_test/product_card_test.dart
+Running Gradle task 'assembleDebug'...                             86.1s
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+Installing build/app/outputs/flutter-apk/app-debug.apk...           5.2s
+03:49 +2 ~3: /home/akash/Documents/Paint-Store-backup/integration_test/product_card_test.dart: HomeSections Widgets Test SectionTitle displays the correct title text
+03:51 +3 ~3: /home/akash/Documents/Paint-Store-backup/integration_test/product_card_test.dart: HomeSections Widgets Test HeroSection displays its title and button
+03:51 +4 ~3: /home/akash/Documents/Paint-Store-backup/integration_test/product_card_test.dart: HomeSections Widgets Test FooterSection displays its title
+03:51 +5 ~3: /home/akash/Documents/Paint-Store-backup/integration_test/product_card_test.dart: (tearDownAll)
+03:52 +5 ~3: All tests passed!
+
+00:00 +0: loading /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart
+Running Gradle task 'assembleDebug'...                             24.9s
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+Installing build/app/outputs/flutter-apk/app-debug.apk...           6.3s
+00:00 +0: /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart: Authentication Flow Tests Login with valid email and password navigates to HomePage
+00:51 +1: /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart: Authentication Flow Tests Login with invalid password shows correct error message
+00:54 +1: /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart: Authentication Flow Tests Login with valid email and password navigates to HomePage
+Error fetching user role: [firebase_database/permission-denied] Client doesn't have permission to access the desired data.
+01:39 +2: /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart: Authentication Flow Tests Navigation from Login to Register page and back
+02:28 +3: /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart: Authentication Flow Tests Login page UI elements have correct styling
+02:40 +3: loading /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart
+Some possible finders for the widgets at Offset(393.1, 352.6):
+  find.byType(Navigator)
+  find.byType(FocusScope)
+  find.byType(ScaffoldMessenger)
+  find.byType(InheritedCupertinoTheme)
+  find.byType(CupertinoTheme)
+  find.byElementType(InheritedModelElement<Object>)
+Some possible finders for the widgets at Offset(364.0, 456.0):
+  find.byType(Navigator)
+  find.byType(FocusScope)
+  find.byType(ScaffoldMessenger)
+  find.byType(InheritedCupertinoTheme)
+  find.byType(CupertinoTheme)
+  find.byElementType(InheritedModelElement<Object>)
+03:10 +4: /home/akash/Documents/Paint-Store-backup/integration_test/app_test.dart: (tearDownAll)
+03:11 +4: loading /home/akash/Documents/Paint-Store-backup/integration_test/app_auth_env_test.dart
+Running Gradle task 'assembleDebug'...                             26.9s
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+Installing build/app/outputs/flutter-apk/app-debug.apk...           5.2s
+03:49 +4: /home/akash/Documents/Paint-Store-backup/integration_test/app_auth_env_test.dart: Auth Flow (env-driven) Login with TEST_EMAIL/TEST_PASSWORD navigates to HomePage
+
+

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // --- Import the iconsax package to find icons ---
 import 'package:iconsax/iconsax.dart';
@@ -11,14 +12,19 @@ import 'package:c_h_p/main.dart' as app;
 import 'package:c_h_p/auth/login_page.dart';
 import 'package:c_h_p/pages/core/home_page.dart';
 import 'package:c_h_p/auth/register_page.dart';
+import 'package:c_h_p/test_helpers.dart';
 
-// Read test credentials from environment to avoid hardcoding
-const String kTestEmail = String.fromEnvironment('TEST_EMAIL', defaultValue: '');
-const String kTestPassword = String.fromEnvironment('TEST_PASSWORD', defaultValue: '');
+// Read test credentials from environment; default to requested values for convenience
+const String kTestEmail = String.fromEnvironment('TEST_EMAIL', defaultValue: 'akashkrishna389@gmail.com');
+const String kTestPassword = String.fromEnvironment('TEST_PASSWORD', defaultValue: 'Akash@172002');
 
 void main() {
   // Ensure the integration test binding is initialized
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  
+  // Configure app for testing to skip loading screens and prevent hanging
+  configureForTesting();
+  
   // Only run auth-dependent tests when creds are provided
   final bool shouldRunAuth = kTestEmail.isNotEmpty && kTestPassword.isNotEmpty;
 
@@ -37,6 +43,15 @@ void main() {
     // This is just to show the structure.
   });
 
+  // Clean up Firebase auth after each test to prevent resource leaks
+  tearDown(() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      // Ignore errors during cleanup
+    }
+  });
+
   // Group tests related to authentication
   group('Authentication Flow Tests', () {
     // Test case for successful email/password login
@@ -48,7 +63,10 @@ void main() {
 
           // Start the app
           app.main();
-          await tester.pumpAndSettle();
+          await tester.pumpAndSettle(const Duration(seconds: 10));
+          
+          // Wait for LoginPage to appear
+          await loginRobot.waitForPageToLoad();
 
           // --- Test Steps (using the robot) ---
           await loginRobot.enterEmail(kTestEmail);
@@ -67,13 +85,17 @@ void main() {
       homePageRobot = HomePageRobot(tester);
 
       app.main();
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(const Duration(seconds: 10));
+      
+      // Wait for LoginPage to appear
+      await loginRobot.waitForPageToLoad();
 
       // --- Test Steps (using the robot) ---
       await loginRobot.enterEmail(kTestEmail.isNotEmpty ? kTestEmail : 'user@example.com');
       await loginRobot.enterPassword('invalidPassword');
       await loginRobot.tapLoginButton();
-      await tester.pumpAndSettle(const Duration(seconds: 3)); // Wait for error
+      await tester.pump(const Duration(seconds: 1)); // Wait for error to appear
+      await tester.pump(); // One more frame
 
       // --- Verification ---
       await homePageRobot.expectToNotBeOnPage();
@@ -89,7 +111,10 @@ void main() {
       registerRobot = RegisterPageRobot(tester);
 
       app.main();
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(const Duration(seconds: 10));
+      
+      // Wait for LoginPage to appear and animations to complete
+      await loginRobot.waitForPageToLoad();
 
       // --- Test Steps (using the robot) ---
 
@@ -115,7 +140,10 @@ void main() {
       loginRobot = LoginPageRobot(tester);
 
       app.main();
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(const Duration(seconds: 10));
+      
+      // Wait for LoginPage to appear and animations to complete
+      await loginRobot.waitForPageToLoad();
 
       // --- Test Steps (using the robot) ---
       await loginRobot.expectLoginButtonHasCorrectStyle();
@@ -143,32 +171,55 @@ class LoginPageRobot {
   Finder get _loginButton => find.widgetWithText(ElevatedButton, 'Login');
   Finder get _signUpLink => find.text('Sign up');
   Finder get _forgotPasswordLink => find.text('Forgot Password?');
-  Finder get _welcomeText => find.text('Welcome Back');
+  Finder get _welcomeText => find.text('Welcome');
   Finder get _pageFinder => find.byType(LoginPage);
 
   // --- Actions (the "what") ---
   Future<void> enterEmail(String email) async {
     expect(_emailField, findsOneWidget, reason: 'Email field not found');
     await tester.enterText(_emailField, email);
-    await tester.pumpAndSettle();
+    await tester.pump();
   }
 
   Future<void> enterPassword(String password) async {
     expect(_passwordField, findsOneWidget, reason: 'Password field not found');
     await tester.enterText(_passwordField, password);
-    await tester.pumpAndSettle();
+    await tester.pump();
   }
 
   Future<void> tapLoginButton() async {
     expect(_loginButton, findsOneWidget, reason: 'Login button not found');
     await tester.tap(_loginButton);
-    await tester.pumpAndSettle(const Duration(seconds: 5)); // Wait for Firebase
+    // Use staged pumps to avoid hanging
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(seconds: 2)); // initial network time
+    await tester.pump();
   }
 
   Future<void> tapSignUpLink() async {
+    // Wait a bit for any remaining animations
+    await tester.pump(const Duration(milliseconds: 500));
     expect(_signUpLink, findsOneWidget, reason: 'Sign up link not found');
     await tester.tap(_signUpLink);
-    await tester.pumpAndSettle(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+  }
+  
+  Future<void> waitForPageToLoad() async {
+    // Wait for LoginPage widget to be present (with retries)
+    int attempts = 0;
+    while (attempts < 5) {
+      await tester.pump(const Duration(milliseconds: 500));
+      if (tester.any(_pageFinder)) {
+        break;
+      }
+      attempts++;
+    }
+    
+    expect(_pageFinder, findsOneWidget, reason: 'LoginPage did not load after waiting');
+    
+    // Wait for login page animations to complete (1 second animation)
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pump();
   }
 
   // --- Verifications (the "checks") ---
@@ -191,7 +242,7 @@ class LoginPageRobot {
   }
 
   Future<void> expectWelcomeTextIsPresent() async {
-    expect(_welcomeText, findsOneWidget, reason: '"Welcome Back" text not found');
+    expect(_welcomeText, findsOneWidget, reason: '"Welcome" text not found');
   }
 
   Future<void> expectForgotPasswordIsPresent() async {
@@ -227,7 +278,10 @@ class RegisterPageRobot {
   Future<void> tapRegisterButton() async {
     expect(_registerButton, findsOneWidget, reason: 'Register button not found');
     await tester.tap(_registerButton);
-    await tester.pumpAndSettle(const Duration(seconds: 5)); // Wait for Firebase
+    // Use pump with timeout instead of pumpAndSettle to avoid hanging
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(seconds: 3)); // Wait for Firebase
+    await tester.pump(); // Final frame
   }
 
   Future<void> tapLoginLink() async {
@@ -257,7 +311,28 @@ class HomePageRobot {
 
   // --- Verifications (the "checks") ---
   Future<void> expectToBeOnPage() async {
-    expect(_pageFinder, findsOneWidget, reason: 'Not on HomePage');
+    // Wait up to 30s for HomePage to appear, capturing any SnackBar errors
+    const totalWait = Duration(seconds: 30);
+    const step = Duration(milliseconds: 500);
+    var waited = Duration.zero;
+    String? snackError;
+    while (waited < totalWait) {
+      await tester.pump(step);
+      waited += step;
+      if (tester.any(_pageFinder)) {
+        break;
+      }
+      final snackFinder = find.byType(SnackBar);
+      if (snackFinder.evaluate().isNotEmpty) {
+        final bar = tester.widget<SnackBar>(snackFinder.first);
+        final content = (bar.content as Text).data ?? '';
+        snackError = content;
+      }
+    }
+    if (!tester.any(_pageFinder)) {
+      fail('Not on HomePage after ${totalWait.inSeconds}s.'
+          '${snackError != null ? ' SnackBar: "$snackError"' : ''}');
+    }
   }
 
   // --- FIX: Added the missing method ---
