@@ -1,8 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
 // Remove incorrect ProductDetailPage imports
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
@@ -51,9 +53,37 @@ class _CartPageState extends State<CartPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
+  // Cache product details to avoid re-fetching on every quantity change
+  Map<String, Product?> _productCache = {};
+  String _lastKeysSignature = '';
+  bool _justQuantityChange = false;
+  final Map<String, Timer> _qtyDebounce = {};
+
   double _parsePrice(String value) {
     final sanitized = value.replaceAll(RegExp(r'[^0-9\.]'), '');
     return double.tryParse(sanitized) ?? 0.0;
+  }
+
+  // Debounced typed quantity updater
+  void _scheduleTypedQtyUpdate(String productKey, String raw, {required int availableStock}) {
+    // sanitize input
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    int? parsed = int.tryParse(digits);
+    if (parsed == null) {
+      return; // ignore until a number appears
+    }
+    if (availableStock > 0) {
+      if (parsed < 1) parsed = 1;
+      if (parsed > availableStock) parsed = availableStock;
+    } else {
+      if (parsed < 1) parsed = 1;
+    }
+
+    // debounce per product
+    _qtyDebounce[productKey]?.cancel();
+    _qtyDebounce[productKey] = Timer(const Duration(milliseconds: 400), () {
+      _updateQuantity(productKey, parsed!);
+    });
   }
 
   // --- Cart Modification Functions ---
@@ -62,6 +92,7 @@ class _CartPageState extends State<CartPage> {
     if (user == null) return;
     final itemRef = _dbRef.child('users/${user.uid}/cart/$productKey');
 
+    _justQuantityChange = true; // used to suppress list item animations briefly
     if (newQuantity > 0) {
       itemRef.update({'quantity': newQuantity});
     } else {
@@ -72,6 +103,22 @@ class _CartPageState extends State<CartPage> {
         );
       }
     }
+  }
+
+  // Helper to update quantity with known stock clamp from UI (prevents exceeding stock)
+  void _incrementWithStockClamp(CartItemDetails item) {
+    final stock = item.productDetails?.stock ?? 0;
+    if (stock <= 0) return; // nothing available
+    final nextQty = (item.quantity + 1) > stock ? stock : (item.quantity + 1);
+    if (nextQty == item.quantity) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Only $stock in stock'), duration: const Duration(seconds: 1)),
+        );
+      }
+      return;
+    }
+    _updateQuantity(item.productKey, nextQty);
   }
 
   void _updateSelectedSize(String productKey, PackSize newPackSize) {
@@ -152,7 +199,7 @@ class _CartPageState extends State<CartPage> {
           final productKeys = cartMap.keys.toList();
 
           return FutureBuilder<Map<String, Product?>>(
-            future: _fetchAllProductDetails(productKeys),
+            future: _getProductDetailsCached(productKeys),
             builder: (context, productDetailsSnapshot) {
               Widget bodyContent;
               List<CartItemDetails> cartItemsWithDetails = [];
@@ -224,6 +271,19 @@ class _CartPageState extends State<CartPage> {
     }).toList();
     await Future.wait(futures);
     return detailsMap;
+  }
+
+  // Cached fetch: reuse details when product keys set hasn't changed
+  Future<Map<String, Product?>> _getProductDetailsCached(List<String> productKeys) async {
+    final sorted = List<String>.from(productKeys)..sort();
+    final signature = sorted.join('|');
+    if (_lastKeysSignature == signature && _productCache.isNotEmpty) {
+      return _productCache;
+    }
+    final fetched = await _fetchAllProductDetails(productKeys);
+    _lastKeysSignature = signature;
+    _productCache = fetched;
+    return fetched;
   }
 
   // --- UI Building Widgets ---
@@ -306,6 +366,12 @@ class _CartPageState extends State<CartPage> {
       final price = _parsePrice(item.selectedPrice);
       subtotal += price * item.quantity;
     }
+    // Suppress animations if this rebuild was triggered by quantity change
+    final animateItems = !_justQuantityChange;
+    if (_justQuantityChange) {
+      // reset flag in next microtask to allow future animations
+      Future.microtask(() => _justQuantityChange = false);
+    }
     return Column(
       children: [
         Expanded(
@@ -315,7 +381,9 @@ class _CartPageState extends State<CartPage> {
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final item = items[index];
-              return _buildCartItem(item)
+              final card = _buildCartItem(item);
+              if (!animateItems) return card;
+              return card
                   .animate()
                   .fadeIn(duration: 400.ms, delay: (100 * index).ms)
                   .moveY(begin: 20, curve: Curves.easeOutCubic);
@@ -339,6 +407,9 @@ class _CartPageState extends State<CartPage> {
     // --- Calculate Line Item Total ---
     final double itemPrice = _parsePrice(currentSelectedPackSize.price);
     final double lineTotal = item.quantity * itemPrice;
+
+    final int availableStock = item.productDetails?.stock ?? 0;
+    final bool atMax = availableStock > 0 && item.quantity >= availableStock;
 
     return Dismissible(
       key: Key(item.productKey + currentSelectedPackSize.size),
@@ -401,11 +472,56 @@ class _CartPageState extends State<CartPage> {
                         height: 35, decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
                         child: Row( mainAxisSize: MainAxisSize.min, children: [
                           IconButton( icon: const Icon(Iconsax.minus, size: 16), onPressed: item.quantity > 1 ? () => _updateQuantity(item.productKey, item.quantity - 1) : null, padding: const EdgeInsets.symmetric(horizontal: 4), constraints: const BoxConstraints(), splashRadius: 18, tooltip: 'Decrease quantity'),
-                          Padding( padding: const EdgeInsets.symmetric(horizontal: 8.0), child: Text(item.quantity.toString(), style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold))),
-                          IconButton( icon: const Icon(Iconsax.add, size: 16, color: Colors.deepOrange), onPressed: () => _updateQuantity(item.productKey, item.quantity + 1), padding: const EdgeInsets.symmetric(horizontal: 4), constraints: const BoxConstraints(), splashRadius: 18, tooltip: 'Increase quantity'),
+                          SizedBox(
+                            width: 48,
+                            child: TextFormField(
+                              key: ValueKey('qty_${item.productKey}'),
+                              initialValue: item.quantity.toString(),
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(vertical: 6),
+                                border: InputBorder.none,
+                              ),
+                              onChanged: (val) {
+                                _scheduleTypedQtyUpdate(item.productKey, val, availableStock: availableStock);
+                              },
+                              onFieldSubmitted: (val) {
+                                // immediate commit on submit
+                                final digits = val.replaceAll(RegExp(r'[^0-9]'), '');
+                                int parsed = int.tryParse(digits) ?? item.quantity;
+                                if (availableStock > 0) {
+                                  if (parsed < 1) parsed = 1;
+                                  if (parsed > availableStock) parsed = availableStock;
+                                } else {
+                                  if (parsed < 1) parsed = 1;
+                                }
+                                _qtyDebounce[item.productKey]?.cancel();
+                                _updateQuantity(item.productKey, parsed);
+                              },
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Iconsax.add, size: 16, color: atMax ? Colors.grey : Colors.deepOrange),
+                            onPressed: atMax ? null : () => _incrementWithStockClamp(item),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            constraints: const BoxConstraints(),
+                            splashRadius: 18,
+                            tooltip: atMax ? 'Reached available stock' : 'Increase quantity',
+                          ),
                         ]),
                       ),
-                      Text( '₹${lineTotal.toStringAsFixed(2)}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold) ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text( '₹${lineTotal.toStringAsFixed(2)}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold) ),
+                          if (availableStock > 0)
+                            Text('Max $availableStock in stock', style: GoogleFonts.poppins(fontSize: 11, color: atMax ? Colors.redAccent : Colors.grey.shade600)),
+                        ],
+                      ),
                     ],
                   )
                 ],
@@ -445,6 +561,16 @@ class _CartPageState extends State<CartPage> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: subtotal > 0 ? () {
+                // Validate stock before proceeding
+                for (final it in items) {
+                  final stock = it.productDetails?.stock ?? 0;
+                  if (stock > 0 && it.quantity > stock) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Reduce quantity of "${it.name}" to $stock or less (in stock).'), backgroundColor: Colors.orange),
+                    );
+                    return;
+                  }
+                }
                 final int amountPaise = (total * 100).round();
                 if (amountPaise < 100) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
