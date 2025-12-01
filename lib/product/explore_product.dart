@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../model/product_model.dart';
+import '../services/recommendation_service.dart';
+import 'product_detail_page.dart';
 import 'explore/interior_page.dart';
 import 'explore/exterior_page.dart';
 import 'explore/waterproofing_page.dart';
@@ -45,6 +49,79 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildRecommendedSection() {
+    return FutureBuilder<List<Product>>(
+      future: RecommendationService.fetchRecommendedProducts(limit: 10),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final items = snapshot.data!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Text(
+                'Recommended for you',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18, color: Colors.grey.shade800),
+              ),
+            ),
+            SizedBox(
+              height: 210,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final p = items[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ProductDetailPage(product: p)),
+                      );
+                    },
+                    child: SizedBox(
+                      width: 150,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: AspectRatio(
+                              aspectRatio: 1,
+                              child: CachedNetworkImage(
+                                imageUrl: p.mainImageUrl,
+                                fit: BoxFit.cover,
+                                placeholder: (c, u) => Container(color: Colors.grey.shade200),
+                                errorWidget: (c, u, e) => const Icon(Iconsax.gallery_slash),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            p.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ).animate().fadeIn(delay: 350.ms, duration: 400.ms).moveY(begin: 20, curve: Curves.easeOut);
+      },
     );
   }
 
@@ -95,6 +172,9 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
             imageProvider: _images[2],
             onTap: () => _navigateToPage(context, const WaterproofingPage()),
           ).animate().fadeIn(delay: 300.ms, duration: 400.ms).moveY(begin: 30, curve: Curves.easeOut),
+
+          const SizedBox(height: 16),
+          _buildRecommendedSection(),
 
           const SizedBox(height: 24), // Spacing before the button
 

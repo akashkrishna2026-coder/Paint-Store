@@ -39,6 +39,7 @@ class _PaymentPageState extends State<PaymentPage> {
   bool _paymentCompleted = false;
   String? _deliveryAddress;
   bool _openedCheckout = false;
+  bool _checkoutInvoked = false; // helps detect if sheet failed to appear
 
   // --- Razorpay Event Listeners ---
   @override
@@ -116,9 +117,14 @@ class _PaymentPageState extends State<PaymentPage> {
         };
 
         await orderRef.set(orderPayload);
-        // Also write a manager-facing copy for global view
-        await rootRef.child('orders').child(orderRef.key!).set(orderPayload);
         debugPrint("✅ Order saved successfully to Firebase: ${orderRef.key}");
+
+        // Mirror to global orders so Manager dashboard (which reads /orders) can see it
+        try {
+          await rootRef.child('orders').child(orderRef.key!).set(orderPayload);
+        } catch (e) {
+          debugPrint('Warn: Failed to mirror to /orders: $e');
+        }
 
         // --- SEND NOTIFICATIONS ---
         await _sendPurchaseNotifications(user.uid, purchasedNames);
@@ -159,14 +165,35 @@ class _PaymentPageState extends State<PaymentPage> {
 
   Future<void> _sendPurchaseNotifications(String buyerUid, List<String> productNames) async {
     final db = FirebaseDatabase.instance.ref();
-    final message = productNames.isNotEmpty
-        ? 'Purchased: ${productNames.join(', ')}'
-        : 'Purchase completed';
+    
+    // Build detailed message with product info
+    final productInfo = productNames.isNotEmpty
+        ? productNames.join(', ')
+        : 'Items';
+    
+    final message = 'New Order: $productInfo';
     final now = DateTime.now().millisecondsSinceEpoch;
+    
+    // Enhanced payload with location and order details
     final payload = {
       'message': message,
       'timestamp': now,
       'isRead': false,
+      'type': 'order', // Notification type
+      'orderDetails': {
+        'products': productNames,
+        'totalAmount': widget.totalAmount / 100.0,
+        'deliveryAddress': _deliveryAddress ?? 'Not specified',
+        if (widget.lat != null && widget.lng != null) 'location': {
+          'lat': widget.lat,
+          'lng': widget.lng,
+        },
+        'customer': {
+          'name': widget.fullName ?? 'N/A',
+          'email': widget.email ?? 'N/A',
+          'phone': widget.phone ?? 'N/A',
+        },
+      },
     };
 
     // Always notify the buyer (self) — allowed by rules
@@ -237,6 +264,7 @@ class _PaymentPageState extends State<PaymentPage> {
     var options = {
       'key': 'rzp_test_RVfRg0s4WjSnkL', // ⭐ Replace with your ACTUAL Key ID
       'amount': widget.totalAmount, // Amount in paise (or smallest unit)
+      'currency': 'INR',
       'name': 'Chandra Paints', // Your App/Company Name
       'description': 'Paint Order Payment', // Order Description
       'timeout': 120, // Payment timeout in seconds (optional)
@@ -253,7 +281,22 @@ class _PaymentPageState extends State<PaymentPage> {
     };
 
     try {
+      _checkoutInvoked = true;
       _razorpay.open(options);
+      // Watchdog: if the sheet doesn't show (no callbacks) within 8s, let user retry
+      Future.delayed(const Duration(seconds: 8), () {
+        if (!mounted) return;
+        if (!_paymentCompleted && _checkoutInvoked && _isProcessing) {
+          setState(() => _isProcessing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open payment sheet. Tap to retry.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      });
     } catch (e) {
       if (mounted) setState(() => _isProcessing = false); // Hide loading on error
       debugPrint('Error opening Razorpay checkout: $e');
@@ -281,6 +324,12 @@ class _PaymentPageState extends State<PaymentPage> {
             const CircularProgressIndicator(color: Colors.deepOrange),
             const SizedBox(height: 16),
             Text('Opening secure payment...', style: GoogleFonts.poppins(color: Colors.grey.shade700)),
+            const SizedBox(height: 12),
+            if (!_isProcessing && !_paymentCompleted)
+              ElevatedButton(
+                onPressed: _openCheckout,
+                child: const Text('Retry Payment'),
+              ),
           ],
         ),
       ),

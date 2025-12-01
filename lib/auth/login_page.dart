@@ -18,26 +18,14 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
-  // Animation controllers
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
-  late Animation<Offset> _slideAnimation;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   late final DatabaseReference _dbRef;
-
-  // Hover states
-  bool _isLoginHovered = false;
-  bool _isGoogleHovered = false;
-  bool _isSkipHovered = false;
-  bool _isSignUpHovered = false;
-  bool _isForgotHovered = false;
   @override
   void initState() {
     super.initState();
@@ -45,38 +33,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       app: Firebase.app(),
       databaseURL: 'https://smart-paint-shop-default-rtdb.firebaseio.com',
     ).ref();
-    // Initialize animations
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.5, curve: Curves.easeInOut),
-      ),
-    );
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.3, 0.8, curve: Curves.elasticOut),
-      ),
-    );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.2),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.5, 1.0, curve: Curves.easeOut),
-      ),
-    );
-    _animationController.forward();
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -94,6 +54,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      // Ensure user record exists for role fetch after login
+      try {
+        final uid = _auth.currentUser?.uid;
+        if (uid != null) {
+          final userRef = _dbRef.child("users").child(uid);
+          final snap = await userRef.get();
+          if (!snap.exists) {
+            await userRef.set({
+              'uid': uid,
+              'email': _emailController.text.trim(),
+              'userType': 'Customer',
+              'status': 'approved',
+              'createdAt': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+      } catch (_) {}
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -252,77 +229,45 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       body: SafeArea(
         child: Stack(
           children: [
-            // Background elements with animation
-            AnimatedBuilder(
-              animation: _animationController,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: _fadeAnimation.value,
-                  child: Transform.scale(
-                    scale: _scaleAnimation.value,
-                    child: Stack(
-                      children: [
-                        Positioned(
-                            top: -size.height * 0.15,
-                            right: -size.width * 0.2,
-                            child: Container(
-                                width: size.width * 0.6,
-                                height: size.width * 0.6,
-                                decoration: BoxDecoration(
-                                    gradient: RadialGradient(
-                                        colors: [
-                                          Colors.deepOrange.withValues(alpha: 0.2),
-                                          Colors.deepOrange.withValues(alpha: 0.05),
-                                          Colors.transparent
-                                        ],
-                                        stops: const [0.1, 0.5, 1.0]
-                                    ),
-                                    shape: BoxShape.circle
-                                )
-                            )
+            // Simple static background
+            RepaintBoundary(
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: -size.height * 0.15,
+                    right: -size.width * 0.2,
+                    child: Container(
+                      width: size.width * 0.6,
+                      height: size.width * 0.6,
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          colors: [
+                            Colors.deepOrange.withValues(alpha: 0.15),
+                            Colors.deepOrange.withValues(alpha: 0.03),
+                            Colors.transparent
+                          ],
+                          stops: const [0.1, 0.5, 1.0]
                         ),
-                        Positioned(
-                            bottom: -size.height * 0.2,
-                            left: -size.width * 0.2,
-                            child: Container(
-                                width: size.width * 0.5,
-                                height: size.width * 0.5,
-                                decoration: BoxDecoration(
-                                    gradient: RadialGradient(
-                                        colors: [
-                                          Colors.orange.withValues(alpha: 0.15),
-                                          Colors.orange.withValues(alpha: 0.05),
-                                          Colors.transparent
-                                        ],
-                                        stops: const [0.1, 0.5, 1.0]
-                                    ),
-                                    shape: BoxShape.circle
-                                )
-                            )
-                        ),
-                      ],
-                    ),
+                        shape: BoxShape.circle
+                      )
+                    )
                   ),
-                );
-              },
+                ],
+              ),
             ),
 
             // Main content
             Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Form(
+                child: RepaintBoundary(
+                  child: Form(
                       key: _formKey,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Logo with animation
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
+                          // Logo
+                          Container(
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
                                 gradient: LinearGradient(
@@ -430,109 +375,51 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
                           const SizedBox(height: 16),
 
-                          // Forgot password with hover effect
-                          MouseRegion(
-                            onEnter: (_) => setState(() => _isForgotHovered = true),
-                            onExit: (_) => setState(() => _isForgotHovered = false),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  color: _isForgotHovered
-                                      ? Colors.deepOrange.withValues(alpha: 0.1)
-                                      : Colors.transparent
-                              ),
-                              child: TextButton(
-                                onPressed: _resetPassword,
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: Text(
-                                    "Forgot Password?",
-                                    style: GoogleFonts.poppins(
-                                        fontSize: 14,
-                                        color: Colors.deepOrange,
-                                        fontWeight: FontWeight.w500,
-                                        decoration: _isForgotHovered
-                                            ? TextDecoration.underline
-                                            : TextDecoration.none
-                                    )
-                                ),
-                              ),
+                          // Forgot password
+                          TextButton(
+                            onPressed: _resetPassword,
+                            child: Text(
+                              "Forgot Password?",
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.deepOrange,
+                                fontWeight: FontWeight.w500,
+                              )
                             ),
                           ),
 
                           const SizedBox(height: 24),
 
-                          // Login button with hover effect
-                          MouseRegion(
-                            onEnter: (_) => setState(() => _isLoginHovered = true),
-                            onExit: (_) => setState(() => _isLoginHovered = false),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeOut,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                gradient: LinearGradient(
-                                    colors: [
-                                      Colors.deepOrange,
-                                      _isLoginHovered ? Colors.orange : Colors.deepOrange[700]!,
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight
-                                ),
-                                boxShadow: _isLoginHovered
-                                    ? [
-                                  BoxShadow(
-                                      color: Colors.deepOrange.withValues(alpha: 0.4),
-                                      blurRadius: 12,
-                                      spreadRadius: 2,
-                                      offset: const Offset(0, 4)
+                          // Login button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: _isLoading
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.deepOrange,
+                                      strokeWidth: 2,
+                                    )
                                   )
-                                ]
-                                    : [
-                                  BoxShadow(
-                                      color: Colors.deepOrange.withValues(alpha: 0.3),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2)
-                                  )
-                                ],
-                              ),
-                              child: _isLoading
-                                  ? Container(
-                                  padding: const EdgeInsets.all(16),
-                                  alignment: Alignment.center,
-                                  child: const CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2
-                                  )
-                              )
-                                  : ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 18),
-                                    backgroundColor: Colors.transparent,
-                                    shadowColor: Colors.transparent,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
+                                : ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      backgroundColor: Colors.deepOrange,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(16)
+                                      ),
+                                      elevation: 2,
+                                    ),
+                                    onPressed: _loginUser,
+                                    child: Text(
+                                      'Login',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600
+                                      )
                                     ),
                                   ),
-                                  onPressed: _loginUser,
-                                  child: SizedBox(
-                                    width: double.infinity,
-                                    child: Text(
-                                        'Login',
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.poppins(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600
-                                        )
-                                    ),
-                                  )
-                              ),
-                            ),
                           ),
 
                           const SizedBox(height: 30),
@@ -564,31 +451,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
                           const SizedBox(height: 30),
 
-                          // Google sign in with hover effect
-                          MouseRegion(
-                            onEnter: (_) => setState(() => _isGoogleHovered = true),
-                            onExit: (_) => setState(() => _isGoogleHovered = false),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300
-                                ),
-                                color: _isGoogleHovered
-                                    ? (isDark ? Colors.grey.shade700 : Colors.grey.shade100)
-                                    : (isDark ? Colors.grey.shade800 : Colors.white),
-                                boxShadow: _isGoogleHovered
-                                    ? [
-                                  BoxShadow(
-                                      color: Colors.grey.withValues(alpha: 0.2),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2)
-                                  )
-                                ]
-                                    : null,
-                              ),
-                              child: OutlinedButton.icon(
+                          // Google sign in
+                          OutlinedButton.icon(
                                   icon: Image.asset(
                                       "assets/google.png",
                                       height: 24,
@@ -607,142 +471,86 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                           color: isDark ? Colors.white : Colors.grey.shade800
                                       )
                                   ),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16)
-                                    ),
-                                    side: BorderSide.none,
-                                    backgroundColor: Colors.transparent,
-                                  ),
-                                  onPressed: _signInWithGoogle
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)
+                                ),
+                                side: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                                backgroundColor: isDark ? Colors.grey.shade800 : Colors.white,
                               ),
-                            ),
+                              onPressed: _signInWithGoogle
                           ),
 
                           const SizedBox(height: 32),
 
-                          // Sign up link with hover effect
+                          // Sign up link
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                  "Don't have an account?",
-                                  style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600
-                                  )
+                                "Don't have an account?",
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600
+                                )
                               ),
-                              const SizedBox(width: 4),
-                              MouseRegion(
-                                onEnter: (_) => setState(() => _isSignUpHovered = true),
-                                onExit: (_) => setState(() => _isSignUpHovered = false),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(6),
-                                      color: _isSignUpHovered
-                                          ? Colors.deepOrange.withValues(alpha: 0.1)
-                                          : Colors.transparent
-                                  ),
-                                  child: TextButton(
-                                      onPressed: () {
-                                        Navigator.push(
-                                            context,
-                                            PageRouteBuilder(
-                                              pageBuilder: (context, animation, secondaryAnimation) => const RegisterPage(),
-                                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                                return SlideTransition(
-                                                  position: Tween<Offset>(
-                                                    begin: const Offset(1, 0),
-                                                    end: Offset.zero,
-                                                  ).animate(animation),
-                                                  child: child,
-                                                );
-                                              },
-                                              transitionDuration: const Duration(milliseconds: 400),
-                                            )
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                          "Sign up",
-                                          style: GoogleFonts.poppins(
-                                              fontSize: 14,
-                                              color: Colors.deepOrange,
-                                              fontWeight: FontWeight.w600,
-                                              decoration: _isSignUpHovered
-                                                  ? TextDecoration.underline
-                                                  : TextDecoration.none
-                                          )
-                                      )
-                                  ),
-                                ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const RegisterPage())
+                                  );
+                                },
+                                child: Text(
+                                  "Sign up",
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    color: Colors.deepOrange,
+                                    fontWeight: FontWeight.w600,
+                                  )
+                                )
                               ),
                             ],
                           ),
                         ],
                       ),
-                    ),
                   ),
                 ),
               ),
             ),
 
-            // Skip button with hover effect
+            // Skip button
             if (widget.showSkip)
               Positioned(
                 top: 16,
                 right: 16,
-                child: MouseRegion(
-                  onEnter: (_) => setState(() => _isSkipHovered = true),
-                  onExit: (_) => setState(() => _isSkipHovered = false),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    decoration: BoxDecoration(
-                      color: _isSkipHovered
-                          ? (isDark ? Colors.grey.shade700 : Colors.white)
-                          : (isDark ? Colors.grey.shade800.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.7)),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: _isSkipHovered ? 0.1 : 0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2)
-                        )
-                      ],
-                      border: _isSkipHovered
-                          ? Border.all(color: Colors.deepOrange.withValues(alpha: 0.3))
-                          : null,
-                    ),
-                    child: TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                              context,
-                              PageRouteBuilder(
-                                pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
-                                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                  return FadeTransition(
-                                    opacity: animation,
-                                    child: child,
-                                  );
-                                },
-                                transitionDuration: const Duration(milliseconds: 500),
-                              )
-                          );
-                        },
-                        child: Text(
-                            "Skip",
-                            style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.deepOrange
-                            )
-                        )
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade800.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2)
+                      )
+                    ],
+                  ),
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HomePage())
+                      );
+                    },
+                    child: Text(
+                      "Skip",
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.deepOrange
+                      )
                     ),
                   ),
                 ),

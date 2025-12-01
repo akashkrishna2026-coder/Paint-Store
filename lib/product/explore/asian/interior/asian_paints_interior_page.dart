@@ -198,17 +198,20 @@ class _AnimatedProductCardState extends State<_AnimatedProductCard> with SingleT
 
   @override
   Widget build(BuildContext context) {
+    // Build the card once and cache it to prevent image reloading
+    final card = _buildProductCategoryCard(
+      context: context,
+      title: widget.title,
+      subtitle: widget.subtitle,
+      assetImage: widget.assetImage,
+      warranty: widget.warranty,
+      overlayColor: widget.overlayColor,
+      onTap: widget.onTap,
+    );
+    
     return ScaleTransition(
       scale: _scaleAnimation,
-      child: _buildProductCategoryCard(
-        context: context,
-        title: widget.title,
-        subtitle: widget.subtitle,
-        assetImage: widget.assetImage,
-        warranty: widget.warranty,
-        overlayColor: widget.overlayColor,
-        onTap: widget.onTap,
-      ),
+      child: RepaintBoundary(child: card),
     );
   }
 }
@@ -244,10 +247,13 @@ Widget _buildProductCategoryCard({
         child: Stack(
           children: [
             Positioned.fill(
-              child: Image.asset(
-                assetImage,
-                fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => Container(color: overlayColor.withValues(alpha: 0.5), child: const Center(child: Icon(Iconsax.gallery_slash, color: Colors.white70, size: 40))),
+              child: RepaintBoundary(
+                child: Image.asset(
+                  assetImage,
+                  fit: BoxFit.cover,
+                  cacheWidth: 600, // Cache at reasonable size to improve performance
+                  errorBuilder: (c, e, s) => Container(color: overlayColor.withValues(alpha: 0.5), child: const Center(child: Icon(Iconsax.gallery_slash, color: Colors.white70, size: 40))),
+                ),
               ),
             ),
             Positioned.fill(

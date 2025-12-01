@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:c_h_p/test_helpers.dart';
 
 class LoadingScreen extends StatefulWidget {
   final Widget nextPage; // Page to go after loading
@@ -35,12 +36,15 @@ class _LoadingScreenState extends State<LoadingScreen>
 
     _controller.forward();
 
-    // Navigate after 3 seconds
-    Timer(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => widget.nextPage),
-      );
+    // Navigate after delay - skip loading screen in tests
+    final delay = skipLoadingScreens ? const Duration(milliseconds: 100) : const Duration(seconds: 3);
+    Timer(delay, () {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => widget.nextPage),
+        );
+      }
     });
   }
 

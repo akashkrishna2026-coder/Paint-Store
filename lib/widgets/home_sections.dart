@@ -20,10 +20,24 @@ class SectionTitle extends StatelessWidget {
       ),
     );
   }
+
 }
 
-class PopularTrendsSection extends StatelessWidget {
+class PopularTrendsSection extends StatefulWidget {
   const PopularTrendsSection({super.key});
+
+  @override
+  State<PopularTrendsSection> createState() => _PopularTrendsSectionState();
+}
+
+class _PopularTrendsSectionState extends State<PopularTrendsSection> {
+  late final Future<List<Map<String, dynamic>>> _trendsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _trendsFuture = _fetchTrends();
+  }
 
   Future<List<Map<String, dynamic>>> _fetchTrends() async {
     final snap = await FirebaseDatabase.instance.ref('trends').get();
@@ -53,7 +67,7 @@ class PopularTrendsSection extends StatelessWidget {
         SizedBox(
           height: 150,
           child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: _fetchTrends(),
+            future: _trendsFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return ListView.separated(
@@ -121,6 +135,7 @@ class PopularTrendsSection extends StatelessWidget {
               child: CachedNetworkImage(
                 imageUrl: imageUrl,
                 fit: BoxFit.cover,
+                memCacheWidth: 600,
                 placeholder: (c, u) => Container(color: Colors.grey.shade200),
                 errorWidget: (c, e, s) => Container(color: Colors.grey.shade200, child: const Icon(Iconsax.gallery_slash)),
               ),
@@ -298,7 +313,11 @@ class ContactSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text("Contact Us", style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 18, color: Colors.deepOrange)),
         const SizedBox(height: 16),
-        _buildContactInfoItem(Iconsax.location, "📍 Location: Kuttikkattupadi, Kerala"),
+        _buildContactInfoItem(
+          Iconsax.location,
+          "📍 Location: Kuttikkattupadi, Kerala",
+          onTap: () => _launchUrlHelper("https://maps.app.goo.gl/YsqSXgvtwZmEzuSH6"),
+        ),
         _buildContactInfoItem(Iconsax.call, "📞 Phone: +91 9744345394"),
         _buildContactInfoItem(Iconsax.sms, "✉ Email: chandrapaints2025@gmail.com"),
         const SizedBox(height: 16),
@@ -338,14 +357,31 @@ class ContactSection extends StatelessWidget {
     );
   }
 
-  Widget _buildContactInfoItem(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  Widget _buildContactInfoItem(IconData icon, String text, {VoidCallback? onTap}) {
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Icon(icon, color: Colors.deepOrange.shade400, size: 20), // Slightly lighter icon
         const SizedBox(width: 12),
         Expanded(child: Text(text, style: GoogleFonts.poppins(fontSize: 14))), // Slightly larger text
-      ]),
+      ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: onTap == null
+          ? row
+          : Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2.0),
+                  child: row,
+                ),
+              ),
+            ),
     );
   }
 }

@@ -31,6 +31,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   ];
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Precache onboarding images to reduce first-frame jank
+    for (final p in _pages) {
+      final img = p['image'];
+      if (img != null && img.isNotEmpty) {
+        precacheImage(AssetImage(img), context);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -51,7 +63,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.asset(_pages[index]['image']!, height: 250),
+                      RepaintBoundary(
+                        child: Image.asset(
+                          _pages[index]['image']!,
+                          height: 250,
+                          cacheWidth: 800,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
                       const SizedBox(height: 30),
                       Text(
                         _pages[index]['title']!,

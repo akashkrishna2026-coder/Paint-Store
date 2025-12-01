@@ -166,7 +166,7 @@ class _ManageTrendsPageState extends State<ManageTrendsPage> {
     return await snap.ref.getDownloadURL();
   }
 
-  Future<void> _save() async {
+  Future<void> _save({bool closeAfter = true}) async {
     if (!_formKey.currentState!.validate()) return;
     if (_coverImage == null || _pdfFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -190,8 +190,6 @@ class _ManageTrendsPageState extends State<ManageTrendsPage> {
       }
     } catch (_) {}
 
-    // Capture Navigator and Messenger before async gaps
-
     setState(() => _submitting = true);
 
     try {
@@ -207,9 +205,21 @@ class _ManageTrendsPageState extends State<ManageTrendsPage> {
 
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('Trend added')),
+        SnackBar(content: Text(closeAfter ? 'Trend added' : 'Trend added. You can add another.')),
       );
-      nav.pop();
+
+      if (closeAfter) {
+        nav.pop();
+      } else {
+        // Reset the form to allow adding another trend quickly
+        _titleController.clear();
+        setState(() {
+          _coverImage = null;
+          _coverPreview = null;
+          _pdfFile = null;
+          _pdfName = null;
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -296,18 +306,38 @@ class _ManageTrendsPageState extends State<ManageTrendsPage> {
               const SizedBox(height: 24),
               _submitting
                   ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
-                  : SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: _save,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepOrange,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 48,
+                            child: OutlinedButton(
+                              onPressed: () => _save(closeAfter: false),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.deepOrange,
+                                side: BorderSide(color: Colors.deepOrange.shade300),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: Text('Save & Add Another', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                            ),
+                          ),
                         ),
-                        child: Text('Save Trend', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: 48,
+                            child: ElevatedButton(
+                              onPressed: () => _save(closeAfter: true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.deepOrange,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: Text('Save & Close', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
             ],
           ),

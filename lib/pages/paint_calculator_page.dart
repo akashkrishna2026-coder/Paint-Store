@@ -26,12 +26,14 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
   bool _measuringWidth = true;
   double? _widthM;
   double? _heightM;
-  String _status = 'Move device to detect a plane, then tap two points for WIDTH.';
+  String _status =
+      'Move device to detect a plane, then tap two points for WIDTH.';
   bool _showHelp = true;
   // New: units and measurement helpers (display only)
   final bool _useMetric = true; // true: meters, false: feet/inches display
   bool _cameraReady = false;
-  final bool _wallMode = true; // when true, vertical-only plane detection (auto wall mode)
+  final bool _wallMode =
+      true; // when true, vertical-only plane detection (auto wall mode)
   bool _manualMode = false; // fallback UI when AR fails or user prefers manual
   bool _arCreated = false; // prevent double initialization
   final TextEditingController _manualW = TextEditingController();
@@ -50,6 +52,7 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
     });
     _ensureCameraPermission();
   }
+
   @override
   void dispose() {
     // Dispose AR resources to release camera and overlays
@@ -81,7 +84,9 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
           Positioned.fill(
             child: Listener(
               behavior: HitTestBehavior.translucent,
-              onPointerDown: (ev) { _lastPointer = ev.position; },
+              onPointerDown: (ev) {
+                _lastPointer = ev.position;
+              },
             ),
           ),
           if (_cameraReady && !_manualMode)
@@ -132,19 +137,20 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
             ),
           // Center reticle (non-blocking)
           if (_cameraReady && !_manualMode)
-          IgnorePointer(
-            ignoring: true,
-            child: Center(
-              child: Container(
-                width: 14,
-                height: 14,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
+            IgnorePointer(
+              ignoring: true,
+              child: Center(
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: Theme.of(context).colorScheme.primary, width: 2),
+                  ),
                 ),
               ),
             ),
-          ),
           // Tap markers (screen space)
           ..._tapOffsets.map((o) => Positioned(
                 left: o.dx - 6,
@@ -157,7 +163,9 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.transparent,
-                      border: Border.all(color: Theme.of(context).colorScheme.tertiary, width: 2),
+                      border: Border.all(
+                          color: Theme.of(context).colorScheme.tertiary,
+                          width: 2),
                     ),
                   ),
                 ),
@@ -171,13 +179,20 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
                 child: Padding(
                   padding: const EdgeInsets.only(top: 10.0),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.9),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surface
+                          .withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                      border: Border.all(
+                          color: Theme.of(context).colorScheme.outlineVariant),
                     ),
-                    child: Text(_cameraReady ? _status : 'Awaiting camera permission…', style: Theme.of(context).textTheme.labelMedium),
+                    child: Text(
+                        _cameraReady ? _status : 'Awaiting camera permission…',
+                        style: Theme.of(context).textTheme.labelMedium),
                   ),
                 ),
               ),
@@ -230,11 +245,19 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: const [
-                        Text('How to use AR calculator', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        Text('How to use AR calculator',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)),
                         SizedBox(height: 8),
-                        Text('• Move your phone to detect a flat surface (plane)', style: TextStyle(color: Colors.white)),
-                        Text('• Tap two points for WIDTH, then two points for HEIGHT', style: TextStyle(color: Colors.white)),
-                        Text('• Adjust coverage and buffer if needed', style: TextStyle(color: Colors.white)),
+                        Text(
+                            '• Move your phone to detect a flat surface (plane)',
+                            style: TextStyle(color: Colors.white)),
+                        Text(
+                            '• Tap two points for WIDTH, then two points for HEIGHT',
+                            style: TextStyle(color: Colors.white)),
+                        Text('• Adjust coverage and buffer if needed',
+                            style: TextStyle(color: Colors.white)),
                       ],
                     ),
                   ),
@@ -248,29 +271,39 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
             child: Card(
               elevation: 6,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: _manualMode
                     ? Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Enter dimensions (${_useMetric ? 'meters' : 'feet'})'),
+                          Text(
+                              'Enter dimensions (${_useMetric ? 'meters' : 'feet'})'),
                           const SizedBox(height: 8),
                           Row(
                             children: [
                               Expanded(
                                 child: TextField(
                                   controller: _manualW,
-                                  decoration: const InputDecoration(labelText: 'Width', border: OutlineInputBorder()),
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  decoration: const InputDecoration(
+                                      labelText: 'Width',
+                                      border: OutlineInputBorder()),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: TextField(
                                   controller: _manualH,
-                                  decoration: const InputDecoration(labelText: 'Height', border: OutlineInputBorder()),
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  decoration: const InputDecoration(
+                                      labelText: 'Height',
+                                      border: OutlineInputBorder()),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
                                 ),
                               ),
                             ],
@@ -278,19 +311,34 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
                           const SizedBox(height: 10),
                           Row(
                             children: [
-                              TextButton(onPressed: () => setState((){ _manualW.clear(); _manualH.clear(); }), child: const Text('Clear')),
+                              TextButton(
+                                  onPressed: () => setState(() {
+                                        _manualW.clear();
+                                        _manualH.clear();
+                                      }),
+                                  child: const Text('Clear')),
                               const Spacer(),
                               ElevatedButton(
                                 onPressed: () {
-                                  final w = double.tryParse(_manualW.text.trim());
-                                  final h = double.tryParse(_manualH.text.trim());
-                                  if (w != null && h != null && w > 0 && h > 0) {
+                                  final w =
+                                      double.tryParse(_manualW.text.trim());
+                                  final h =
+                                      double.tryParse(_manualH.text.trim());
+                                  if (w != null &&
+                                      h != null &&
+                                      w > 0 &&
+                                      h > 0) {
                                     final wm = _useMetric ? w : w / 3.28084;
                                     final hm = _useMetric ? h : h / 3.28084;
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) => PaintResultsPage(
-                                          initialWalls: [ Wall(widthM: wm, heightM: hm, name: 'Wall 1') ],
+                                          initialWalls: [
+                                            Wall(
+                                                widthM: wm,
+                                                heightM: hm,
+                                                name: 'Wall 1')
+                                          ],
                                         ),
                                       ),
                                     );
@@ -314,7 +362,8 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
                               ],
                             ),
                           ),
-                          TextButton(onPressed: _reset, child: const Text('Reset')),
+                          TextButton(
+                              onPressed: _reset, child: const Text('Reset')),
                           const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: (_widthM != null && _heightM != null)
@@ -323,7 +372,10 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
                                       MaterialPageRoute(
                                         builder: (_) => PaintResultsPage(
                                           initialWalls: [
-                                            Wall(widthM: _widthM!, heightM: _heightM!, name: 'Wall 1'),
+                                            Wall(
+                                                widthM: _widthM!,
+                                                heightM: _heightM!,
+                                                name: 'Wall 1'),
                                           ],
                                         ),
                                       ),
@@ -407,7 +459,8 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
     final m = results.first.worldTransform.storage;
     final point = vm.Vector3(m[12], m[13], m[14]);
     // Heuristic distance band gating (approximate) to improve reliability
-    final distance = point.length; // May approximate camera distance if origin ~ initial camera
+    final distance = point
+        .length; // May approximate camera distance if origin ~ initial camera
     if (distance.isFinite && (distance < 0.5 || distance > 3.5)) {
       setState(() {
         _status = distance < 0.5
@@ -420,7 +473,9 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
     if (_p1 == null) {
       setState(() {
         _p1 = point;
-        _status = _measuringWidth ? 'First point set for WIDTH. Tap second point.' : 'First point set for HEIGHT. Tap second point.';
+        _status = _measuringWidth
+            ? 'First point set for WIDTH. Tap second point.'
+            : 'First point set for HEIGHT. Tap second point.';
         if (_lastPointer != null) {
           _tapOffsets.add(_lastPointer!);
           if (_tapOffsets.length > 4) _tapOffsets.removeAt(0);
@@ -442,8 +497,10 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
         // If the two taps differ too much in height, ask user to retap
         if (dy.abs() > 0.20) {
           setState(() {
-            _status = 'Keep both WIDTH taps at similar height (vertical diff < 20 cm). Try again.';
-            _p1 = null; _p2 = null;
+            _status =
+                'Keep both WIDTH taps at similar height (vertical diff < 20 cm). Try again.';
+            _p1 = null;
+            _p2 = null;
           });
           return;
         }
@@ -454,8 +511,10 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
         // If horizontal drift is large, ask user to retap
         if (horizontal > 0.20) {
           setState(() {
-            _status = 'Keep HEIGHT taps vertically aligned (horizontal drift < 20 cm). Try again.';
-            _p1 = null; _p2 = null;
+            _status =
+                'Keep HEIGHT taps vertically aligned (horizontal drift < 20 cm). Try again.';
+            _p1 = null;
+            _p2 = null;
           });
           return;
         }
@@ -467,10 +526,12 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
         if (_measuringWidth) {
           _widthM = d;
           _measuringWidth = false;
-          _status = 'Width set (${_widthM!.toStringAsFixed(2)} m). Now tap two points for HEIGHT.';
+          _status =
+              'Width set (${_widthM!.toStringAsFixed(2)} m). Now tap two points for HEIGHT.';
         } else {
           _heightM = d;
-          _status = 'Height set (${_heightM!.toStringAsFixed(2)} m). Add to Results or Reset to re-measure.';
+          _status =
+              'Height set (${_heightM!.toStringAsFixed(2)} m). Add to Results or Reset to re-measure.';
         }
         _p1 = null;
         _p2 = null;
@@ -483,7 +544,6 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
     }
   }
 
-
   void _reset() {
     setState(() {
       _p1 = null;
@@ -494,7 +554,6 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
       _status = 'Tap two points to measure WIDTH.';
       _tapOffsets.clear();
     });
-    
   }
 
   // Helpers
@@ -505,7 +564,5 @@ class _PaintCalculatorPageState extends State<PaintCalculatorPage> {
     final f = feet.floor();
     final inch = (feet - f) * 12;
     return "${f.toString()} ft ${inch.toStringAsFixed(1)} in";
-    }
+  }
 }
-
-

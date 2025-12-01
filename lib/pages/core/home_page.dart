@@ -17,8 +17,8 @@ import 'package:c_h_p/pages/view_painters_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:c_h_p/services/fcm_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:c_h_p/widgets/explore_icon.dart'; // Ensure you have your custom icon widget
@@ -58,12 +58,12 @@ class _HomePageState extends State<HomePage> {
   Timer? _debounce;
   bool _isSearchLoading = false;
   int _selectedIndex = 1;
+  bool _productsLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _fetchUserRole();
-    _fetchAllProductsForSearch();
     _searchFocusNode.addListener(_handleSearchFocus);
     _searchController.addListener(_onSearchChanged);
   }
@@ -103,6 +103,14 @@ class _HomePageState extends State<HomePage> {
               return Product.fromMap(
                   entry.key, Map<String, dynamic>.from(entry.value));
             }).toList();
+            _productsLoaded = true;
+            if (_searchController.text.trim().isNotEmpty) {
+              final query = _searchController.text.toLowerCase();
+              _suggestions = _allProducts
+                  .where((p) => p.name.toLowerCase().contains(query))
+                  .toList();
+              _isSearchLoading = false;
+            }
           });
         }
       }
@@ -155,6 +163,8 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     if (shouldLogout == true) {
+      // Unsubscribe from user topic before sign out
+      await FCMService.unsubscribeForUser(FirebaseAuth.instance.currentUser);
       await FirebaseAuth.instance.signOut();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -211,27 +221,16 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 12),
-              FeaturedCarousel(
-                      scrollItems: scrollItems, onItemTap: _handleCarouselTap)
-                  .animate()
-                  .fadeIn(duration: 600.ms)
-                  .moveY(begin: 20, curve: Curves.easeOut),
-              const SizedBox(height: 28),
-              const PopularTrendsSection()
-                  .animate()
-                  .fadeIn(duration: 600.ms, delay: 200.ms)
-                  .moveY(begin: 20, curve: Curves.easeOut),
-              const SizedBox(height: 28),
-              // Removed 'Why Choose Us' section
+              RepaintBoundary(
+                child: FeaturedCarousel(
+                  scrollItems: scrollItems,
+                  onItemTap: _handleCarouselTap,
+                ),
+              ),
+              // Removed PopularTrendsSection to reduce homepage jank
               const SizedBox(height: 12),
-              const SectionTitle("Get in Touch")
-                  .animate()
-                  .fadeIn(duration: 600.ms, delay: 400.ms)
-                  .moveY(begin: 20, curve: Curves.easeOut),
-              const ContactSection()
-                  .animate()
-                  .fadeIn(duration: 600.ms, delay: 500.ms)
-                  .moveY(begin: 20, curve: Curves.easeOut),
+              const RepaintBoundary(child: SectionTitle("Get in Touch")),
+              const RepaintBoundary(child: ContactSection()),
               const SizedBox(height: 120),
             ],
           ),
@@ -280,20 +279,25 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       actions: [
-        StreamBuilder(
+        StreamBuilder<DatabaseEvent>(
           stream: currentUser != null
               ? FirebaseDatabase.instance
                   .ref('users/${currentUser.uid}/notifications')
+                  .limitToLast(50) // Limit to reduce data load
                   .onValue
               : null,
-          builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
+          builder: (context, snapshot) {
             int unreadCount = 0;
             if (snapshot.hasData && snapshot.data?.snapshot.value != null) {
-              final notifications = Map<String, dynamic>.from(
-                  snapshot.data!.snapshot.value as Map);
-              notifications.forEach((key, value) {
-                if (value['isRead'] == false) unreadCount++;
-              });
+              try {
+                final notifications = Map<String, dynamic>.from(
+                    snapshot.data!.snapshot.value as Map);
+                notifications.forEach((key, value) {
+                  if (value['isRead'] == false) unreadCount++;
+                });
+              } catch (e) {
+                // Handle error silently
+              }
             }
             return Stack(
               alignment: Alignment.center,
@@ -411,18 +415,24 @@ class _HomePageState extends State<HomePage> {
     }
     if (!_searchFocusNode.hasFocus) _searchFocusNode.requestFocus();
     if (mounted) setState(() => _isSearchLoading = true);
+    // Lazy-load products on first search
+    if (!_productsLoaded) {
+      _fetchAllProductsForSearch();
+    }
     _showOverlay();
     _debounce = Timer(const Duration(milliseconds: 300), () {
-      final filtered = _allProducts
-          .where((p) => p.name
-              .toLowerCase()
-              .contains(_searchController.text.toLowerCase()))
-          .toList();
-      if (mounted) {
-        setState(() {
-          _suggestions = filtered;
-          _isSearchLoading = false;
-        });
+      if (_productsLoaded) {
+        final filtered = _allProducts
+            .where((p) => p.name
+                .toLowerCase()
+                .contains(_searchController.text.toLowerCase()))
+            .toList();
+        if (mounted) {
+          setState(() {
+            _suggestions = filtered;
+            _isSearchLoading = false;
+          });
+        }
       }
       _overlayEntry?.markNeedsBuild();
     });
@@ -472,14 +482,17 @@ class _HomePageState extends State<HomePage> {
                             return ListTile(
                               leading: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: CachedNetworkImage(
-                                  // ⭐ FIX: Changed 'imageUrl' to 'mainImageUrl'
-                                  imageUrl: product.mainImageUrl,
-                                  width: 40,
-                                  height: 40,
-                                  fit: BoxFit.cover,
-                                  errorWidget: (c, e, s) =>
-                                      const Icon(Icons.image_not_supported),
+                                child: RepaintBoundary(
+                                  child: CachedNetworkImage(
+                                    // ⭐ FIX: Changed 'imageUrl' to 'mainImageUrl'
+                                    imageUrl: product.mainImageUrl,
+                                    width: 40,
+                                    height: 40,
+                                    fit: BoxFit.cover,
+                                    memCacheWidth: 120,
+                                    errorWidget: (c, e, s) =>
+                                        const Icon(Icons.image_not_supported),
+                                  ),
                                 ),
                               ),
                               title: Text(product.name),

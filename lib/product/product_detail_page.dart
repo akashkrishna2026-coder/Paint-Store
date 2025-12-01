@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:c_h_p/model/product_model.dart'; // Ensure correct import
+import '../services/recommendation_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,10 @@ class ProductDetailPage extends StatefulWidget {
 class _ProductDetailPageState extends State<ProductDetailPage> {
   int _selectedBenefitIndex = 0;
   bool _precached = false;
+
+  Future<List<Product>> _loadSimilarProducts() async {
+    return RecommendationService.fetchSimilarProducts(widget.product, limit: 10);
+  }
 
   @override
   void didChangeDependencies() {
@@ -310,6 +315,71 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   ),
                   const SizedBox(height: 24),
                 ],
+
+                // Similar Products Section (KNN-based)
+                const Divider(height: 1, thickness: 0.5),
+                _buildSectionTitle('Similar products'),
+                FutureBuilder<List<Product>>(
+                  future: _loadSimilarProducts(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox.shrink();
+                    }
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    final items = snapshot.data!;
+                    return SizedBox(
+                      height: 210,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final p = items[index];
+                          return GestureDetector(
+                            onTap: () {
+                              final brand = (p.brand ?? '').toLowerCase();
+                              if (brand.startsWith('indigo')) {
+                                // Navigate to specialized Indigo detail if needed
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailPage(product: p)));
+                              } else {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailPage(product: p)));
+                              }
+                            },
+                            child: SizedBox(
+                              width: 150,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: AspectRatio(
+                                      aspectRatio: 1,
+                                      child: CachedNetworkImage(
+                                        imageUrl: p.mainImageUrl,
+                                        fit: BoxFit.cover,
+                                        placeholder: (c, u) => Container(color: Colors.grey.shade200),
+                                        errorWidget: (c, u, e) => const Icon(Iconsax.gallery_slash),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    p.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
 
 
                 // Brochure Download Button
