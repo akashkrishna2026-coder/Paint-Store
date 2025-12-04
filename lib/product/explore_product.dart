@@ -44,7 +44,8 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
         pageBuilder: (context, animation, secondaryAnimation) => page,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
-            opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+            opacity:
+                CurvedAnimation(parent: animation, curve: Curves.easeInOut),
             child: child,
           );
         },
@@ -70,7 +71,10 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Text(
                 'Recommended for you',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18, color: Colors.grey.shade800),
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    color: Colors.grey.shade800),
               ),
             ),
             SizedBox(
@@ -85,7 +89,8 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => ProductDetailPage(product: p)),
+                        MaterialPageRoute(
+                            builder: (_) => ProductDetailPage(product: p)),
                       );
                     },
                     child: SizedBox(
@@ -100,8 +105,10 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
                               child: CachedNetworkImage(
                                 imageUrl: p.mainImageUrl,
                                 fit: BoxFit.cover,
-                                placeholder: (c, u) => Container(color: Colors.grey.shade200),
-                                errorWidget: (c, u, e) => const Icon(Iconsax.gallery_slash),
+                                placeholder: (c, u) =>
+                                    Container(color: Colors.grey.shade200),
+                                errorWidget: (c, u, e) =>
+                                    const Icon(Iconsax.gallery_slash),
                               ),
                             ),
                           ),
@@ -110,7 +117,8 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
                             p.name,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                            style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
@@ -120,7 +128,10 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
               ),
             ),
           ],
-        ).animate().fadeIn(delay: 350.ms, duration: 400.ms).moveY(begin: 20, curve: Curves.easeOut);
+        )
+            .animate()
+            .fadeIn(delay: 350.ms, duration: 400.ms)
+            .moveY(begin: 20, curve: Curves.easeOut);
       },
     );
   }
@@ -130,7 +141,9 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text("Explore Products", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+        title: Text("Explore Products",
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
         backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: IconThemeData(color: Colors.grey.shade800),
@@ -148,14 +161,17 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          // ⭐ FIX: Pass the Hero tag directly to the card builder
+          //  Pass the Hero tag directly to the card builder
           _buildCategoryCard(
             tag: 'interior_card', // Unique tag for Hero animation
             title: "Interior Wall Paints",
             subtitle: "Paints, textures, and wallpapers for your home!",
             imageProvider: _images[0],
             onTap: () => _navigateToPage(context, const InteriorPage()),
-          ).animate().fadeIn(delay: 100.ms, duration: 400.ms).moveY(begin: 30, curve: Curves.easeOut),
+          )
+              .animate()
+              .fadeIn(delay: 100.ms, duration: 400.ms)
+              .moveY(begin: 30, curve: Curves.easeOut),
 
           _buildCategoryCard(
             tag: 'exterior_card', // Unique tag
@@ -163,7 +179,10 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
             subtitle: "Weather-proof paints for a lasting impression.",
             imageProvider: _images[1],
             onTap: () => _navigateToPage(context, const ExteriorPage()),
-          ).animate().fadeIn(delay: 200.ms, duration: 400.ms).moveY(begin: 30, curve: Curves.easeOut),
+          )
+              .animate()
+              .fadeIn(delay: 200.ms, duration: 400.ms)
+              .moveY(begin: 30, curve: Curves.easeOut),
 
           _buildCategoryCard(
             tag: 'waterproofing_card', // Unique tag
@@ -171,7 +190,10 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
             subtitle: "One-stop solutions for a leak-free home.",
             imageProvider: _images[2],
             onTap: () => _navigateToPage(context, const WaterproofingPage()),
-          ).animate().fadeIn(delay: 300.ms, duration: 400.ms).moveY(begin: 30, curve: Curves.easeOut),
+          )
+              .animate()
+              .fadeIn(delay: 300.ms, duration: 400.ms)
+              .moveY(begin: 30, curve: Curves.easeOut),
 
           const SizedBox(height: 16),
           _buildRecommendedSection(),
@@ -187,9 +209,11 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
               );
             },
             icon: const Icon(Iconsax.colors_square),
-            label: Text('Explore Color Catalogue', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            label: Text('Explore Color Catalogue',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.deepOrange, backgroundColor: Colors.deepOrange.shade50,
+              foregroundColor: Colors.deepOrange,
+              backgroundColor: Colors.deepOrange.shade50,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -197,13 +221,16 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
               ),
               elevation: 0,
             ),
-          ).animate().fadeIn(delay: 400.ms, duration: 400.ms).moveY(begin: 30, curve: Curves.easeOut),
+          )
+              .animate()
+              .fadeIn(delay: 400.ms, duration: 400.ms)
+              .moveY(begin: 30, curve: Curves.easeOut),
         ],
       ),
     );
   }
 
-  // ⭐ FIX: This card builder now includes the Hero widget internally
+  //  FIX: This card builder now includes the Hero widget internally
   Widget _buildCategoryCard({
     required String tag, // Added tag parameter
     required String title,
@@ -218,19 +245,20 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
         type: MaterialType.transparency,
         child: Hero(
           tag: tag,
-          // ⭐ FIX: Added flightShuttleBuilder for smoother transition
+          //  FIX: Added flightShuttleBuilder for smoother transition
           flightShuttleBuilder: (
-              BuildContext flightContext,
-              Animation<double> animation,
-              HeroFlightDirection flightDirection,
-              BuildContext fromHeroContext,
-              BuildContext toHeroContext,
-              ) {
+            BuildContext flightContext,
+            Animation<double> animation,
+            HeroFlightDirection flightDirection,
+            BuildContext fromHeroContext,
+            BuildContext toHeroContext,
+          ) {
             final Hero toHero = toHeroContext.widget as Hero;
             // Apply a slight scale animation during the flight
             return ScaleTransition(
               scale: animation.drive(
-                Tween<double>(begin: 1.0, end: 1.05).chain(CurveTween(curve: Curves.easeInOut)),
+                Tween<double>(begin: 1.0, end: 1.05)
+                    .chain(CurveTween(curve: Curves.easeInOut)),
               ),
               child: toHero.child,
             );
@@ -246,7 +274,8 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
                 image: DecorationImage(
                   image: imageProvider,
                   fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.4), BlendMode.darken),
+                  colorFilter: ColorFilter.mode(
+                      Colors.black.withValues(alpha: 0.4), BlendMode.darken),
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -266,7 +295,9 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
-                      shadows: [const Shadow(blurRadius: 2, color: Colors.black54)],
+                      shadows: [
+                        const Shadow(blurRadius: 2, color: Colors.black54)
+                      ],
                     ),
                   ),
                   Text(
@@ -274,7 +305,9 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       color: Colors.white.withValues(alpha: 0.9),
-                      shadows: [const Shadow(blurRadius: 1, color: Colors.black45)],
+                      shadows: [
+                        const Shadow(blurRadius: 1, color: Colors.black45)
+                      ],
                     ),
                   ),
                 ],

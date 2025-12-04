@@ -1,5 +1,5 @@
 import 'package:c_h_p/admin/add_product_page.dart';
-import 'package:c_h_p/model/product_model.dart'; // ⭐ 1. IMPORT THE CORRECT PRODUCT MODEL
+import 'package:c_h_p/model/product_model.dart';
 import 'package:c_h_p/product/edit_product_page.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -26,16 +26,21 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Confirm Deletion'),
-        content: Text('Are you sure you want to delete "$name"? This action cannot be undone.'),
+        content: Text(
+            'Are you sure you want to delete "$name"? This action cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () {
               _dbRef.child(key).remove();
               Navigator.of(ctx).pop();
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('"$name" has been deleted.'), backgroundColor: Colors.red),
+                SnackBar(
+                    content: Text('"$name" has been deleted.'),
+                    backgroundColor: Colors.red),
               );
             },
             child: const Text('Delete'),
@@ -50,7 +55,9 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: Text("Manage Products", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+        title: Text("Manage Products",
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
         backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: IconThemeData(color: Colors.grey.shade800),
@@ -72,7 +79,8 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
                 filled: true,
                 fillColor: Colors.grey.shade200,
               ),
-              onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
+              onChanged: (value) =>
+                  setState(() => _searchQuery = value.toLowerCase()),
             ),
           ),
           // --- PRODUCT LIST ---
@@ -82,25 +90,44 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
               stream: _dbRef.orderByChild('name').onValue,
               builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
+                  return const Center(
+                      child:
+                          CircularProgressIndicator(color: Colors.deepOrange));
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text("Error loading products: ${snapshot.error}"));
+                  return Center(
+                      child: Text("Error loading products: ${snapshot.error}"));
                 }
-                if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
-                  return const Center(child: Text("No products found. Add one to get started!"));
+                if (!snapshot.hasData ||
+                    snapshot.data?.snapshot.value == null) {
+                  return const Center(
+                      child:
+                          Text("No products found. Add one to get started!"));
                 }
 
-                final productsMap = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
+                final productsMap = Map<String, dynamic>.from(
+                    snapshot.data!.snapshot.value as Map);
 
                 // ⭐ 2. CONVERT DATA TO PRODUCT OBJECTS FIRST
-                final List<Product> allProducts = productsMap.entries.map((entry) {
+                final List<Product> allProducts =
+                    productsMap.entries.map((entry) {
                   try {
-                    return Product.fromMap(entry.key, Map<String, dynamic>.from(entry.value));
+                    return Product.fromMap(
+                        entry.key, Map<String, dynamic>.from(entry.value));
                   } catch (e) {
-                    debugPrint("Error parsing product ${entry.key} for manage page: $e");
+                    debugPrint(
+                        "Error parsing product ${entry.key} for manage page: $e");
                     // Return a dummy product or handle error appropriately
-                    return Product(key: entry.key, name: "Error Parsing", description: "", stock: 0, mainImageUrl: "", backgroundImageUrl: "", benefits: [], packSizes: [], brochureUrl: "");
+                    return Product(
+                        key: entry.key,
+                        name: "Error Parsing",
+                        description: "",
+                        stock: 0,
+                        mainImageUrl: "",
+                        backgroundImageUrl: "",
+                        benefits: [],
+                        packSizes: [],
+                        brochureUrl: "");
                   }
                 }).toList();
 
@@ -110,17 +137,21 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
                 }).toList();
 
                 if (filteredProducts.isEmpty) {
-                  return const Center(child: Text("No products match your search."));
+                  return const Center(
+                      child: Text("No products match your search."));
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100), // Padding includes FAB space
+                  padding: const EdgeInsets.fromLTRB(
+                      16, 16, 16, 100), // Padding includes FAB space
                   itemCount: filteredProducts.length,
                   itemBuilder: (context, index) {
                     final product = filteredProducts[index];
                     // Still need the raw map for the potentially un-updated EditProductPage
-                    final productData = Map<String, dynamic>.from(productsMap[product.key] as Map);
-                    return _buildProductCard(product, productData); // Pass both product and raw data
+                    final productData = Map<String, dynamic>.from(
+                        productsMap[product.key] as Map);
+                    return _buildProductCard(
+                        product, productData); // Pass both product and raw data
                   },
                 );
               },
@@ -130,17 +161,21 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const AddProductPage()));
+          Navigator.push(context,
+              MaterialPageRoute(builder: (context) => const AddProductPage()));
         },
         backgroundColor: Colors.deepOrange,
         icon: const Icon(Iconsax.add, color: Colors.white),
-        label: Text("Add Product", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+        label: Text("Add Product",
+            style: GoogleFonts.poppins(
+                color: Colors.white, fontWeight: FontWeight.w600)),
       ),
     );
   }
 
   // ⭐ 3. UPDATED CARD WIDGET to use Product object
-  Widget _buildProductCard(Product product, Map<String, dynamic> rawProductData) {
+  Widget _buildProductCard(
+      Product product, Map<String, dynamic> rawProductData) {
     int stock = product.stock;
     Color stockColor;
     if (stock == 0) {
@@ -152,7 +187,8 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
     }
 
     // Get the price of the first pack size to display
-    final priceToShow = product.packSizes.isNotEmpty ? product.packSizes.first.price : 'N/A';
+    final priceToShow =
+        product.packSizes.isNotEmpty ? product.packSizes.first.price : 'N/A';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -181,8 +217,10 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
                           fadeInDuration: const Duration(milliseconds: 160),
                           memCacheWidth: 220,
                           memCacheHeight: 220,
-                          placeholder: (context, url) => Container(color: Colors.grey.shade200),
-                          errorWidget: (context, url, error) => const Center(child: Icon(Iconsax.gallery_slash)),
+                          placeholder: (context, url) =>
+                              Container(color: Colors.grey.shade200),
+                          errorWidget: (context, url, error) =>
+                              const Center(child: Icon(Iconsax.gallery_slash)),
                         ),
                       ),
                     ),
@@ -196,13 +234,15 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
                       Text(
                         // ⭐ Use name from Product object
                         product.name,
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         // ⭐ Use brand from Product object
                         "Brand: ${product.brand ?? 'N/A'}",
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 13),
                       ),
                     ],
                   ),
@@ -216,26 +256,35 @@ class _ManageProductsPageState extends State<ManageProductsPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Stock: $stock", style: TextStyle(fontWeight: FontWeight.bold, color: stockColor)),
+                    Text("Stock: $stock",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: stockColor)),
                     // ⭐ Display starting price from pack sizes
-                    Text("MRP : ₹$priceToShow", style: TextStyle(color: Colors.grey.shade700)),
+                    Text("MRP : ₹$priceToShow",
+                        style: TextStyle(color: Colors.grey.shade700)),
                   ],
                 ),
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Iconsax.edit, color: Colors.blue, size: 20),
+                      icon: const Icon(Iconsax.edit,
+                          color: Colors.blue, size: 20),
                       onPressed: () => Navigator.push(
                         context,
                         // Pass the raw data map to EditProductPage
-                        MaterialPageRoute(builder: (_) => EditProductPage(productKey: product.key, productData: rawProductData)),
+                        MaterialPageRoute(
+                            builder: (_) => EditProductPage(
+                                productKey: product.key,
+                                productData: rawProductData)),
                       ),
                       tooltip: 'Edit Product',
                     ),
                     IconButton(
-                      icon: const Icon(Iconsax.trash, color: Colors.red, size: 20),
+                      icon: const Icon(Iconsax.trash,
+                          color: Colors.red, size: 20),
                       // ⭐ Use key and name from Product object
-                      onPressed: () => _showDeleteDialog(product.key, product.name),
+                      onPressed: () =>
+                          _showDeleteDialog(product.key, product.name),
                       tooltip: 'Delete Product',
                     ),
                   ],

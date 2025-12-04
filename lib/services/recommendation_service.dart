@@ -95,8 +95,12 @@ class RecommendationService {
     double dot = 0;
     double na = 0;
     double nb = 0;
-    for (final v in a.values) na += v * v;
-    for (final v in b.values) nb += v * v;
+    for (final v in a.values) {
+      na += v * v;
+    }
+    for (final v in b.values) {
+      nb += v * v;
+    }
     final keys = <String>{...a.keys, ...b.keys};
     for (final k in keys) {
       final va = a[k] ?? 0;

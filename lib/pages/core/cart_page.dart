@@ -18,9 +18,8 @@ import '../../product/explore/interior_page.dart';
 import '../../product/explore/exterior_page.dart';
 import '../../product/latest_colors_page.dart';
 
-// ⭐ CORRECTED Import for ProductDetailPage using relative path
+// CORRECTED Import for ProductDetailPage using relative path
 import '../../product/product_detail_page.dart';
-
 
 // Helper class to hold combined Cart Item and Product details
 class CartItemDetails {
@@ -34,8 +33,10 @@ class CartItemDetails {
     this.productDetails,
   });
 
-  String get name => cartData['name'] ?? productDetails?.name ?? 'Unknown Product';
-  String get imageUrl => cartData['mainImageUrl'] ?? productDetails?.mainImageUrl ?? '';
+  String get name =>
+      cartData['name'] ?? productDetails?.name ?? 'Unknown Product';
+  String get imageUrl =>
+      cartData['mainImageUrl'] ?? productDetails?.mainImageUrl ?? '';
   int get quantity => cartData['quantity'] ?? 0;
   String get selectedSize => cartData['selectedSize'] ?? '';
   String get selectedPrice => cartData['selectedPrice'] ?? '0';
@@ -65,7 +66,8 @@ class _CartPageState extends State<CartPage> {
   }
 
   // Debounced typed quantity updater
-  void _scheduleTypedQtyUpdate(String productKey, String raw, {required int availableStock}) {
+  void _scheduleTypedQtyUpdate(String productKey, String raw,
+      {required int availableStock}) {
     // sanitize input
     final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
     int? parsed = int.tryParse(digits);
@@ -99,7 +101,8 @@ class _CartPageState extends State<CartPage> {
       itemRef.remove();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Item removed"), duration: Duration(seconds: 1)),
+          const SnackBar(
+              content: Text("Item removed"), duration: Duration(seconds: 1)),
         );
       }
     }
@@ -113,7 +116,9 @@ class _CartPageState extends State<CartPage> {
     if (nextQty == item.quantity) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Only $stock in stock'), duration: const Duration(seconds: 1)),
+          SnackBar(
+              content: Text('Only $stock in stock'),
+              duration: const Duration(seconds: 1)),
         );
       }
       return;
@@ -133,7 +138,9 @@ class _CartPageState extends State<CartPage> {
     });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Size updated to ${newPackSize.size}"), duration: Duration(seconds: 1)),
+        SnackBar(
+            content: Text("Size updated to ${newPackSize.size}"),
+            duration: Duration(seconds: 1)),
       );
     }
   }
@@ -147,10 +154,14 @@ class _CartPageState extends State<CartPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text("Clear Cart", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Text("Remove all items from your cart?", style: GoogleFonts.poppins()),
+        title: Text("Clear Cart",
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text("Remove all items from your cart?",
+            style: GoogleFonts.poppins()),
         actions: [
-          TextButton(child: const Text("Cancel"), onPressed: () => Navigator.of(ctx).pop()),
+          TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.of(ctx).pop()),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             child: const Text("Clear All"),
@@ -159,7 +170,9 @@ class _CartPageState extends State<CartPage> {
               Navigator.of(ctx).pop();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Cart cleared"), backgroundColor: Colors.red),
+                  const SnackBar(
+                      content: Text("Cart cleared"),
+                      backgroundColor: Colors.red),
                 );
               }
             },
@@ -180,87 +193,116 @@ class _CartPageState extends State<CartPage> {
       body: currentUser == null
           ? _buildLoggedOutState()
           : StreamBuilder<DatabaseEvent>(
-        stream: _dbRef.child('users/${currentUser.uid}/cart').onValue,
-        builder: (context, snapshot) {
-          // --- Loading/Error/Empty States ---
-          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-            return Scaffold(appBar: _buildAppBar(false), body: _buildCartLoadingShimmer(3));
-          }
-          if (snapshot.hasError) {
-            return Scaffold(appBar: _buildAppBar(false), body: Center(child: Text("Error: ${snapshot.error}", style: TextStyle(color: Colors.red))));
-          }
-          final cartData = snapshot.data?.snapshot.value;
-          final bool isCartEmpty = cartData == null || (cartData as Map).isEmpty;
-          if (isCartEmpty) {
-            return Scaffold(appBar: _buildAppBar(false), body: _buildEmptyCart());
-          }
-          // --- Cart Has Data ---
-          final cartMap = Map<String, dynamic>.from(cartData);
-          final productKeys = cartMap.keys.toList();
-
-          return FutureBuilder<Map<String, Product?>>(
-            future: _getProductDetailsCached(productKeys),
-            builder: (context, productDetailsSnapshot) {
-              Widget bodyContent;
-              List<CartItemDetails> cartItemsWithDetails = [];
-
-              if (productDetailsSnapshot.connectionState == ConnectionState.waiting) {
-                bodyContent = _buildCartLoadingShimmer(cartMap.length);
-              } else if (productDetailsSnapshot.hasError) {
-                bodyContent = Center(child: Text("Error: ${productDetailsSnapshot.error}", style: TextStyle(color: Colors.red)));
-              } else {
-                final productDetailsMap = productDetailsSnapshot.data ?? {};
-                cartItemsWithDetails = cartMap.entries.map((entry) {
-                  return CartItemDetails(
-                    productKey: entry.key,
-                    cartData: Map<String, dynamic>.from(entry.value),
-                    productDetails: productDetailsMap[entry.key],
-                  );
-                }).where((item) => item.productDetails != null).toList();
-
-                if (cartItemsWithDetails.isEmpty && cartMap.isNotEmpty) {
-                  bodyContent = Center(child: Text("Items may have been removed.", style: TextStyle(color: Colors.orange.shade800)));
-                } else if (cartItemsWithDetails.isEmpty) {
-                  bodyContent = _buildEmptyCart();
-                } else {
-                  bodyContent = _buildCartContent(cartItemsWithDetails);
+              stream: _dbRef.child('users/${currentUser.uid}/cart').onValue,
+              builder: (context, snapshot) {
+                // --- Loading/Error/Empty States ---
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return Scaffold(
+                      appBar: _buildAppBar(false),
+                      body: _buildCartLoadingShimmer(3));
                 }
-              }
+                if (snapshot.hasError) {
+                  return Scaffold(
+                      appBar: _buildAppBar(false),
+                      body: Center(
+                          child: Text("Error: ${snapshot.error}",
+                              style: TextStyle(color: Colors.red))));
+                }
+                final cartData = snapshot.data?.snapshot.value;
+                final bool isCartEmpty =
+                    cartData == null || (cartData as Map).isEmpty;
+                if (isCartEmpty) {
+                  return Scaffold(
+                      appBar: _buildAppBar(false), body: _buildEmptyCart());
+                }
+                // --- Cart Has Data ---
+                final cartMap = Map<String, dynamic>.from(cartData);
+                final productKeys = cartMap.keys.toList();
 
-              return Scaffold(
-                backgroundColor: Colors.grey.shade100,
-                appBar: _buildAppBar(cartItemsWithDetails.isNotEmpty && !isCartEmpty), // Pass true only if cart is not empty AND items loaded
-                body: bodyContent,
-              );
-            },
-          );
-        },
-      ),
+                return FutureBuilder<Map<String, Product?>>(
+                  future: _getProductDetailsCached(productKeys),
+                  builder: (context, productDetailsSnapshot) {
+                    Widget bodyContent;
+                    List<CartItemDetails> cartItemsWithDetails = [];
+
+                    if (productDetailsSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      bodyContent = _buildCartLoadingShimmer(cartMap.length);
+                    } else if (productDetailsSnapshot.hasError) {
+                      bodyContent = Center(
+                          child: Text("Error: ${productDetailsSnapshot.error}",
+                              style: TextStyle(color: Colors.red)));
+                    } else {
+                      final productDetailsMap =
+                          productDetailsSnapshot.data ?? {};
+                      cartItemsWithDetails = cartMap.entries
+                          .map((entry) {
+                            return CartItemDetails(
+                              productKey: entry.key,
+                              cartData: Map<String, dynamic>.from(entry.value),
+                              productDetails: productDetailsMap[entry.key],
+                            );
+                          })
+                          .where((item) => item.productDetails != null)
+                          .toList();
+
+                      if (cartItemsWithDetails.isEmpty && cartMap.isNotEmpty) {
+                        bodyContent = Center(
+                            child: Text("Items may have been removed.",
+                                style:
+                                    TextStyle(color: Colors.orange.shade800)));
+                      } else if (cartItemsWithDetails.isEmpty) {
+                        bodyContent = _buildEmptyCart();
+                      } else {
+                        bodyContent = _buildCartContent(cartItemsWithDetails);
+                      }
+                    }
+
+                    return Scaffold(
+                      backgroundColor: Colors.grey.shade100,
+                      appBar: _buildAppBar(cartItemsWithDetails.isNotEmpty &&
+                          !isCartEmpty), // Pass true only if cart is not empty AND items loaded
+                      body: bodyContent,
+                    );
+                  },
+                );
+              },
+            ),
     );
   }
 
   // --- Helper to build AppBar ---
   AppBar _buildAppBar(bool showClearButton) {
     return AppBar(
-      title: Text("My Cart", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+      title: Text("My Cart",
+          style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
       backgroundColor: Colors.white,
       elevation: 1,
       iconTheme: IconThemeData(color: Colors.grey.shade800),
-      actions: showClearButton ? [
-        IconButton( icon: const Icon(Iconsax.trash), onPressed: _clearCart, tooltip: 'Clear Cart' ),
-      ] : [],
+      actions: showClearButton
+          ? [
+              IconButton(
+                  icon: const Icon(Iconsax.trash),
+                  onPressed: _clearCart,
+                  tooltip: 'Clear Cart'),
+            ]
+          : [],
     );
   }
 
   // --- Helper to Fetch Product Details ---
-  Future<Map<String, Product?>> _fetchAllProductDetails(List<String> productKeys) async {
+  Future<Map<String, Product?>> _fetchAllProductDetails(
+      List<String> productKeys) async {
     final Map<String, Product?> detailsMap = {};
     // Fire all reads in parallel to reduce total wait time.
     final futures = productKeys.map((key) async {
       try {
         final snapshot = await _dbRef.child('products/$key').get();
         if (snapshot.exists && snapshot.value != null) {
-          detailsMap[key] = Product.fromMap(key, Map<String, dynamic>.from(snapshot.value as Map));
+          detailsMap[key] = Product.fromMap(
+              key, Map<String, dynamic>.from(snapshot.value as Map));
         } else {
           detailsMap[key] = null;
         }
@@ -274,7 +316,8 @@ class _CartPageState extends State<CartPage> {
   }
 
   // Cached fetch: reuse details when product keys set hasn't changed
-  Future<Map<String, Product?>> _getProductDetailsCached(List<String> productKeys) async {
+  Future<Map<String, Product?>> _getProductDetailsCached(
+      List<String> productKeys) async {
     final sorted = List<String>.from(productKeys)..sort();
     final signature = sorted.join('|');
     if (_lastKeysSignature == signature && _productCache.isNotEmpty) {
@@ -294,7 +337,9 @@ class _CartPageState extends State<CartPage> {
         children: [
           Icon(Iconsax.login, size: 60, color: Colors.grey.shade400),
           const SizedBox(height: 16),
-          Text("Please log in to view your cart.", style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade700)),
+          Text("Please log in to view your cart.",
+              style: GoogleFonts.poppins(
+                  fontSize: 16, color: Colors.grey.shade700)),
         ],
       ),
     );
@@ -309,47 +354,78 @@ class _CartPageState extends State<CartPage> {
           children: [
             Icon(Iconsax.shopping_cart, size: 80, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            Text("Your Cart is Empty", style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+            Text("Your Cart is Empty",
+                style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800)),
             const SizedBox(height: 8),
-            Text("Add items you want to buy.", textAlign: TextAlign.center, style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600)),
+            Text("Add items you want to buy.",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                    fontSize: 14, color: Colors.grey.shade600)),
             const SizedBox(height: 32),
             ElevatedButton.icon(
               icon: const Icon(Iconsax.shop, size: 20),
-              label: Text("Start Shopping", style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              label: Text("Start Shopping",
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
               onPressed: () {
-                Navigator.pushAndRemoveUntil( context, MaterialPageRoute(builder: (_) => const ExploreProductPage()), (route) => route.isFirst );
+                Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ExploreProductPage()),
+                    (route) => route.isFirst);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange, foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: Colors.deepOrange,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 40),
-            Text("Maybe check these out?", style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade700)),
+            Text("Maybe check these out?",
+                style: GoogleFonts.poppins(
+                    fontSize: 16, color: Colors.grey.shade700)),
             const SizedBox(height: 16),
             Wrap(
-              spacing: 12, runSpacing: 12, alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
               children: [
                 ActionChip(
                   label: const Text("Interior Paints"),
-                  avatar: Icon(Iconsax.home, size: 16, color: Colors.deepOrange.shade300),
+                  avatar: Icon(Iconsax.home,
+                      size: 16, color: Colors.deepOrange.shade300),
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const InteriorPage()));
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const InteriorPage()));
                   },
                 ),
                 ActionChip(
                   label: const Text("Exterior Emulsions"),
-                  avatar: Icon(Iconsax.building_4, size: 16, color: Colors.blue.shade300),
+                  avatar: Icon(Iconsax.building_4,
+                      size: 16, color: Colors.blue.shade300),
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ExteriorPage()));
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ExteriorPage()));
                   },
                 ),
                 ActionChip(
                   label: const Text("New Arrivals"),
-                  avatar: Icon(Iconsax.star, size: 16, color: Colors.amber.shade400),
+                  avatar: Icon(Iconsax.star,
+                      size: 16, color: Colors.amber.shade400),
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const LatestColorsPage()));
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const LatestColorsPage()));
                   },
                 ),
               ],
@@ -400,10 +476,18 @@ class _CartPageState extends State<CartPage> {
     // --- Determine Selected Pack Size ---
     PackSize? currentSelectedPackSizeObject;
     if (item.productDetails != null && item.availableSizes.isNotEmpty) {
-      try { currentSelectedPackSizeObject = item.availableSizes.firstWhere((ps) => ps.size == item.selectedSize); }
-      catch (e) { try { currentSelectedPackSizeObject = item.availableSizes.firstWhere((ps) => ps.price.isNotEmpty && ps.price != '0' && ps.price != 'N/A'); } catch (e2) { /* remains null */ } }
+      try {
+        currentSelectedPackSizeObject = item.availableSizes
+            .firstWhere((ps) => ps.size == item.selectedSize);
+      } catch (e) {
+        try {
+          currentSelectedPackSizeObject = item.availableSizes.firstWhere((ps) =>
+              ps.price.isNotEmpty && ps.price != '0' && ps.price != 'N/A');
+        } catch (e2) {/* remains null */}
+      }
     }
-    final PackSize currentSelectedPackSize = currentSelectedPackSizeObject ?? PackSize(size: item.selectedSize, price: item.selectedPrice);
+    final PackSize currentSelectedPackSize = currentSelectedPackSizeObject ??
+        PackSize(size: item.selectedSize, price: item.selectedPrice);
     // --- Calculate Line Item Total ---
     final double itemPrice = _parsePrice(currentSelectedPackSize.price);
     final double lineTotal = item.quantity * itemPrice;
@@ -414,22 +498,52 @@ class _CartPageState extends State<CartPage> {
     return Dismissible(
       key: Key(item.productKey + currentSelectedPackSize.size),
       direction: DismissDirection.endToStart,
-      onDismissed: (direction) { _updateQuantity(item.productKey, 0); },
+      onDismissed: (direction) {
+        _updateQuantity(item.productKey, 0);
+      },
       background: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        decoration: BoxDecoration(color: Colors.red.shade700, borderRadius: BorderRadius.circular(16)),
-        child: const Row(mainAxisAlignment: MainAxisAlignment.end, children: [ Icon(Iconsax.trash, color: Colors.white), SizedBox(width: 8), Text('Remove', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)) ]),
+        decoration: BoxDecoration(
+            color: Colors.red.shade700,
+            borderRadius: BorderRadius.circular(16)),
+        child: const Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          Icon(Iconsax.trash, color: Colors.white),
+          SizedBox(width: 8),
+          Text('Remove',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+        ]),
       ),
-      child: Container( // Card Content
+      child: Container(
+        // Card Content
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration( color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))]),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4))
+            ]),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- Image ---
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: CachedNetworkImage( imageUrl: item.imageUrl, width: 80, height: 80, fit: BoxFit.cover, placeholder: (c, u) => Container(width: 80, height: 80, color: Colors.grey.shade200), errorWidget: (c, u, e) => Container(width: 80, height: 80, color: Colors.grey.shade200, child: const Icon(Iconsax.gallery_slash))),
+              child: CachedNetworkImage(
+                  imageUrl: item.imageUrl,
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                  placeholder: (c, u) => Container(
+                      width: 80, height: 80, color: Colors.grey.shade200),
+                  errorWidget: (c, u, e) => Container(
+                      width: 80,
+                      height: 80,
+                      color: Colors.grey.shade200,
+                      child: const Icon(Iconsax.gallery_slash))),
             ),
             const SizedBox(width: 16),
             // --- Details Column ---
@@ -439,65 +553,132 @@ class _CartPageState extends State<CartPage> {
                 children: [
                   // --- Product Name (Tappable) ---
                   GestureDetector(
-                    onTap: item.productDetails != null ? () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailPage(product: item.productDetails!)));
-                    } : null,
-                    child: Text(item.name, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16, color: item.productDetails != null ? Colors.black87 : Colors.grey), maxLines: 2, overflow: TextOverflow.ellipsis,),
+                    onTap: item.productDetails != null
+                        ? () {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => ProductDetailPage(
+                                        product: item.productDetails!)));
+                          }
+                        : null,
+                    child: Text(
+                      item.name,
+                      style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: item.productDetails != null
+                              ? Colors.black87
+                              : Colors.grey),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   // --- Pack Size ---
-                  if (item.productDetails != null && item.availableSizes.where((p) => p.price.isNotEmpty && p.price != '0' && p.price != 'N/A').length > 1)
+                  if (item.productDetails != null &&
+                      item.availableSizes
+                              .where((p) =>
+                                  p.price.isNotEmpty &&
+                                  p.price != '0' &&
+                                  p.price != 'N/A')
+                              .length >
+                          1)
                     DropdownButtonHideUnderline(
                       child: DropdownButton<PackSize>(
                         value: currentSelectedPackSize,
                         isDense: true,
                         items: item.availableSizes
-                            .where((pack) => pack.price.isNotEmpty && pack.price != '0' && pack.price != 'N/A')
-                            .map((PackSize packSize) => DropdownMenuItem<PackSize>( value: packSize, child: Text('${packSize.size} - ₹${packSize.price}', style: GoogleFonts.poppins(fontSize: 14)) ))
+                            .where((pack) =>
+                                pack.price.isNotEmpty &&
+                                pack.price != '0' &&
+                                pack.price != 'N/A')
+                            .map((PackSize packSize) =>
+                                DropdownMenuItem<PackSize>(
+                                    value: packSize,
+                                    child: Text(
+                                        '${packSize.size} - ₹${packSize.price}',
+                                        style:
+                                            GoogleFonts.poppins(fontSize: 14))))
                             .toList(),
                         onChanged: (PackSize? newValue) {
-                          if (newValue != null && newValue.size != currentSelectedPackSize.size) { _updateSelectedSize(item.productKey, newValue); }
+                          if (newValue != null &&
+                              newValue.size != currentSelectedPackSize.size) {
+                            _updateSelectedSize(item.productKey, newValue);
+                          }
                         },
                       ),
                     )
                   else
-                    Padding( padding: const EdgeInsets.symmetric(vertical: 8.0), child: Text( '${currentSelectedPackSize.size} - ₹${currentSelectedPackSize.price}', style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade700) )),
+                    Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                            '${currentSelectedPackSize.size} - ₹${currentSelectedPackSize.price}',
+                            style: GoogleFonts.poppins(
+                                fontSize: 14, color: Colors.grey.shade700))),
                   const SizedBox(height: 10),
                   // --- Quantity and Line Total ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Container( // Quantity Controls
-                        height: 35, decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                        child: Row( mainAxisSize: MainAxisSize.min, children: [
-                          IconButton( icon: const Icon(Iconsax.minus, size: 16), onPressed: item.quantity > 1 ? () => _updateQuantity(item.productKey, item.quantity - 1) : null, padding: const EdgeInsets.symmetric(horizontal: 4), constraints: const BoxConstraints(), splashRadius: 18, tooltip: 'Decrease quantity'),
+                      Container(
+                        // Quantity Controls
+                        height: 35,
+                        decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(
+                              icon: const Icon(Iconsax.minus, size: 16),
+                              onPressed: item.quantity > 1
+                                  ? () => _updateQuantity(
+                                      item.productKey, item.quantity - 1)
+                                  : null,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                              constraints: const BoxConstraints(),
+                              splashRadius: 18,
+                              tooltip: 'Decrease quantity'),
                           SizedBox(
                             width: 48,
                             child: TextFormField(
                               key: ValueKey('qty_${item.productKey}'),
                               initialValue: item.quantity.toString(),
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+                              style: GoogleFonts.poppins(
+                                  fontSize: 14, fontWeight: FontWeight.w600),
                               keyboardType: TextInputType.number,
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly
+                              ],
                               decoration: const InputDecoration(
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(vertical: 6),
+                                contentPadding:
+                                    EdgeInsets.symmetric(vertical: 6),
                                 border: InputBorder.none,
                               ),
                               onChanged: (val) {
-                                _scheduleTypedQtyUpdate(item.productKey, val, availableStock: availableStock);
+                                _scheduleTypedQtyUpdate(item.productKey, val,
+                                    availableStock: availableStock);
                               },
                               onFieldSubmitted: (val) {
                                 // immediate commit on submit
-                                final digits = val.replaceAll(RegExp(r'[^0-9]'), '');
-                                int parsed = int.tryParse(digits) ?? item.quantity;
+                                final digits =
+                                    val.replaceAll(RegExp(r'[^0-9]'), '');
+                                int parsed =
+                                    int.tryParse(digits) ?? item.quantity;
                                 if (availableStock > 0) {
-                                  if (parsed < 1) parsed = 1;
-                                  if (parsed > availableStock) parsed = availableStock;
+                                  if (parsed < 1) {
+                                    parsed = 1;
+                                  }
+                                  if (parsed > availableStock) {
+                                    parsed = availableStock;
+                                  }
                                 } else {
-                                  if (parsed < 1) parsed = 1;
+                                  if (parsed < 1) {
+                                    parsed = 1;
+                                  }
                                 }
                                 _qtyDebounce[item.productKey]?.cancel();
                                 _updateQuantity(item.productKey, parsed);
@@ -505,21 +686,34 @@ class _CartPageState extends State<CartPage> {
                             ),
                           ),
                           IconButton(
-                            icon: Icon(Iconsax.add, size: 16, color: atMax ? Colors.grey : Colors.deepOrange),
-                            onPressed: atMax ? null : () => _incrementWithStockClamp(item),
+                            icon: Icon(Iconsax.add,
+                                size: 16,
+                                color: atMax ? Colors.grey : Colors.deepOrange),
+                            onPressed: atMax
+                                ? null
+                                : () => _incrementWithStockClamp(item),
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             constraints: const BoxConstraints(),
                             splashRadius: 18,
-                            tooltip: atMax ? 'Reached available stock' : 'Increase quantity',
+                            tooltip: atMax
+                                ? 'Reached available stock'
+                                : 'Increase quantity',
                           ),
                         ]),
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text( '₹${lineTotal.toStringAsFixed(2)}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold) ),
+                          Text('₹${lineTotal.toStringAsFixed(2)}',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
                           if (availableStock > 0)
-                            Text('Max $availableStock in stock', style: GoogleFonts.poppins(fontSize: 11, color: atMax ? Colors.redAccent : Colors.grey.shade600)),
+                            Text('Max $availableStock in stock',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: atMax
+                                        ? Colors.redAccent
+                                        : Colors.grey.shade600)),
                         ],
                       ),
                     ],
@@ -540,7 +734,15 @@ class _CartPageState extends State<CartPage> {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration( color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, -5))], borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, -5))
+          ],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -553,41 +755,60 @@ class _CartPageState extends State<CartPage> {
           // --- Estimated Delivery ---
           Padding(
             padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
-            child: Row( mainAxisAlignment: MainAxisAlignment.center, children: [ Icon(Iconsax.truck_fast, size: 16, color: Colors.grey.shade600), const SizedBox(width: 8), Text("Est. Delivery within 48 hours", style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600)), ]),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Iconsax.truck_fast, size: 16, color: Colors.grey.shade600),
+              const SizedBox(width: 8),
+              Text("Est. Delivery within 48 hours",
+                  style: GoogleFonts.poppins(
+                      fontSize: 13, color: Colors.grey.shade600)),
+            ]),
           ),
 
           // --- Checkout Button ---
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: subtotal > 0 ? () {
-                // Validate stock before proceeding
-                for (final it in items) {
-                  final stock = it.productDetails?.stock ?? 0;
-                  if (stock > 0 && it.quantity > stock) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Reduce quantity of "${it.name}" to $stock or less (in stock).'), backgroundColor: Colors.orange),
-                    );
-                    return;
-                  }
-                }
-                final int amountPaise = (total * 100).round();
-                if (amountPaise < 100) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Order total must be at least ₹1 to proceed.'),
-                    backgroundColor: Colors.orange,
-                  ));
-                  return;
-                }
-                Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => CheckoutFormPage(totalAmountPaise: amountPaise)));
-              } : null,
+              onPressed: subtotal > 0
+                  ? () {
+                      // Validate stock before proceeding
+                      for (final it in items) {
+                        final stock = it.productDetails?.stock ?? 0;
+                        if (stock > 0 && it.quantity > stock) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(
+                                    'Reduce quantity of "${it.name}" to $stock or less (in stock).'),
+                                backgroundColor: Colors.orange),
+                          );
+                          return;
+                        }
+                      }
+                      final int amountPaise = (total * 100).round();
+                      if (amountPaise < 100) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(
+                          content: Text(
+                              'Order total must be at least ₹1 to proceed.'),
+                          backgroundColor: Colors.orange,
+                        ));
+                        return;
+                      }
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => CheckoutFormPage(
+                                  totalAmountPaise: amountPaise)));
+                    }
+                  : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange, foregroundColor: Colors.white,
+                backgroundColor: Colors.deepOrange,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 disabledBackgroundColor: Colors.grey.shade300,
-                textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
+                textStyle: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600, fontSize: 16),
               ),
               child: Text('Proceed to Checkout'),
             ),
@@ -598,16 +819,26 @@ class _CartPageState extends State<CartPage> {
   }
 
   // Helper for summary rows
-  Widget _buildSummaryRow(String label, double amount, {bool isTotal = false, bool isDiscount = false}) {
+  Widget _buildSummaryRow(String label, double amount,
+      {bool isTotal = false, bool isDiscount = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.poppins(fontSize: isTotal ? 18 : 15, fontWeight: isTotal ? FontWeight.bold : FontWeight.normal, color: Colors.grey.shade700)),
+          Text(label,
+              style: GoogleFonts.poppins(
+                  fontSize: isTotal ? 18 : 15,
+                  fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                  color: Colors.grey.shade700)),
           Text(
             '${isDiscount ? '-' : ''}₹${amount.toStringAsFixed(2)}',
-            style: GoogleFonts.poppins( fontSize: isTotal ? 20 : 16, fontWeight: isTotal ? FontWeight.bold : FontWeight.w600, color: isDiscount ? Colors.green.shade700 : (isTotal ? Colors.deepOrange : Colors.black87) ),
+            style: GoogleFonts.poppins(
+                fontSize: isTotal ? 20 : 16,
+                fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
+                color: isDiscount
+                    ? Colors.green.shade700
+                    : (isTotal ? Colors.deepOrange : Colors.black87)),
           ),
         ],
       ),
@@ -625,11 +856,9 @@ class _CartPageState extends State<CartPage> {
             highlightColor: Colors.grey.shade100,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: Container( /* ... Shimmer item layout ... */ ),
+              child: Container(/* ... Shimmer item layout ... */),
             ),
           );
-        }
-    );
+        });
   }
-
 } // End _CartPageState
