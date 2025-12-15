@@ -21,7 +21,7 @@ import 'package:c_h_p/services/fcm_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:c_h_p/widgets/explore_icon.dart'; // Ensure you have your custom icon widget
+// Removed custom spinning explore icon; using a generic icon instead
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -230,7 +230,7 @@ class _HomePageState extends State<HomePage> {
               // Removed PopularTrendsSection to reduce homepage jank
               const SizedBox(height: 12),
               const RepaintBoundary(child: SectionTitle("Get in Touch")),
-              const RepaintBoundary(child: ContactSection()),
+              const RepaintBoundary(child: GetInTouchSection()),
               const SizedBox(height: 120),
             ],
           ),
@@ -371,8 +371,7 @@ class _HomePageState extends State<HomePage> {
         destinations: const [
           NavigationDestination(
               icon: Icon(Iconsax.message_question), label: 'Report'),
-          NavigationDestination(
-              icon: HyperRealisticExploreIcon(size: 38), label: 'Explore'),
+          NavigationDestination(icon: Icon(Icons.explore), label: 'Explore'),
           NavigationDestination(
               icon: Icon(Iconsax.shopping_cart), label: 'Cart'),
         ],
