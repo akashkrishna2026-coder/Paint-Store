@@ -261,8 +261,12 @@ class _CartPageState extends State<CartPage> {
 
                     return Scaffold(
                       backgroundColor: Colors.grey.shade100,
-                      appBar: _buildAppBar(cartItemsWithDetails.isNotEmpty &&
-                          !isCartEmpty), // Pass true only if cart is not empty AND items loaded
+                      appBar: _buildAppBar(
+                        cartItemsWithDetails.isNotEmpty && !isCartEmpty,
+                        itemCount: cartItemsWithDetails.isNotEmpty
+                            ? cartItemsWithDetails.length
+                            : null,
+                      ),
                       body: bodyContent,
                     );
                   },
@@ -273,20 +277,27 @@ class _CartPageState extends State<CartPage> {
   }
 
   // --- Helper to build AppBar ---
-  AppBar _buildAppBar(bool showClearButton) {
+  AppBar _buildAppBar(bool showClearButton, {int? itemCount}) {
+    final countText = itemCount != null ? '  ($itemCount)' : '';
     return AppBar(
-      title: Text("My Cart",
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+      centerTitle: true,
+      title: Text(
+        "My Cart$countText",
+        style: GoogleFonts.poppins(
+          fontWeight: FontWeight.bold,
+          color: Colors.grey.shade800,
+        ),
+      ),
       backgroundColor: Colors.white,
       elevation: 1,
       iconTheme: IconThemeData(color: Colors.grey.shade800),
       actions: showClearButton
           ? [
               IconButton(
-                  icon: const Icon(Iconsax.trash),
-                  onPressed: _clearCart,
-                  tooltip: 'Clear Cart'),
+                icon: const Icon(Iconsax.trash),
+                onPressed: _clearCart,
+                tooltip: 'Clear Cart',
+              ),
             ]
           : [],
     );
