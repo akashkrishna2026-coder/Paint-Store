@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:iconsax/iconsax.dart';
 import 'package:c_h_p/product/explore/product_display_page.dart';
 import 'package:c_h_p/product/explore/asian/interior/textures/textures_page.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:tab_indicator_styler/tab_indicator_styler.dart';
+import 'package:c_h_p/pages/core/cart_page.dart';
+import 'package:iconsax/iconsax.dart';
 
 // ⭐ IMPORT THE NEW PAGES YOU CREATED
 import 'ultima_page.dart';
@@ -21,10 +22,22 @@ class AsianPaintsExteriorPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.grey.shade100,
         appBar: AppBar(
-          title: Text("Asian Paints - Exterior", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+          title: Text("Asian Paints - Exterior",
+              style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
           backgroundColor: Colors.white,
           elevation: 1,
           iconTheme: IconThemeData(color: Colors.grey.shade800),
+          actions: [
+            IconButton(
+              icon: const Icon(Iconsax.shopping_cart),
+              tooltip: 'Cart',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartPage()),
+              ),
+            ),
+          ],
           bottom: TabBar(
             labelColor: Colors.deepOrange,
             unselectedLabelColor: Colors.grey.shade600,
@@ -44,7 +57,9 @@ class AsianPaintsExteriorPage extends StatelessWidget {
         body: TabBarView(
           children: [
             _buildPaintsTab(context),
-            const TexturesPage(category: "Exterior").animate().fadeIn(duration: 400.ms, curve: Curves.easeIn),
+            const TexturesPage(category: "Exterior")
+                .animate()
+                .fadeIn(duration: 400.ms, curve: Curves.easeIn),
           ],
         ),
       ),
@@ -70,13 +85,20 @@ class AsianPaintsExteriorPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Exterior Wall Paints", style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold)),
-                  Text("Protection and beauty for outer walls", style: GoogleFonts.poppins(color: Colors.grey.shade600)),
+                  Text("Exterior Wall Paints",
+                      style: GoogleFonts.poppins(
+                          fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text("Protection and beauty for outer walls",
+                      style: GoogleFonts.poppins(color: Colors.grey.shade600)),
                 ],
               ),
             ),
             TextButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductDisplayPage(title: "All Exterior Paints", category: "Exterior"))),
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ProductDisplayPage(
+                          title: "All Exterior Paints", category: "Exterior"))),
               child: const Text("View All"),
             ),
           ],
@@ -94,9 +116,16 @@ class AsianPaintsExteriorPage extends StatelessWidget {
                     child: Hero(
                       tag: "Ultima_card",
                       child: ProductCategoryCard(
-                        title: "Ultima", subtitle: "emulsions", assetImage: "assets/ultima.jpg", warranty: "15", overlayColor: const Color(0xff004d40),
+                        title: "Ultima",
+                        subtitle: "emulsions",
+                        assetImage: "assets/ultima.jpg",
+                        warranty: "15",
+                        overlayColor: const Color(0xff004d40),
                         // ⭐ FIX: Navigate to the new UltimaPage
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UltimaPage())),
+                        onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const UltimaPage())),
                       ),
                     ),
                   ),
@@ -108,9 +137,16 @@ class AsianPaintsExteriorPage extends StatelessWidget {
                     child: Hero(
                       tag: "Apex_card",
                       child: ProductCategoryCard(
-                        title: "Apex", subtitle: "emulsions", assetImage: "assets/Apex.jpg", warranty: "8", overlayColor: const Color(0xff4a148c),
+                        title: "Apex",
+                        subtitle: "emulsions",
+                        assetImage: "assets/Apex.jpg",
+                        warranty: "8",
+                        overlayColor: const Color(0xff4a148c),
                         // ⭐ FIX: Navigate to the new ApexPage
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ApexPage())),
+                        onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const ApexPage())),
                       ),
                     ),
                   ),
@@ -125,9 +161,14 @@ class AsianPaintsExteriorPage extends StatelessWidget {
                 child: Hero(
                   tag: "Ace_card",
                   child: ProductCategoryCard(
-                    title: "Ace", subtitle: "emulsions", assetImage: "assets/Ace.jpg", warranty: "5", overlayColor: const Color(0xffbf360c),
+                    title: "Ace",
+                    subtitle: "emulsions",
+                    assetImage: "assets/Ace.jpg",
+                    warranty: "5",
+                    overlayColor: const Color(0xffbf360c),
                     // ⭐ FIX: Navigate to the new AcePage
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AcePage())),
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const AcePage())),
                   ),
                 ),
               ),
@@ -171,13 +212,22 @@ class ProductCategoryCard extends StatelessWidget {
           child: Stack(
             children: [
               Positioned.fill(
-                child: Image.asset(assetImage, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: overlayColor.withValues(alpha: 0.5), child: const Center(child: Icon(Iconsax.gallery_slash, color: Colors.white70, size: 40)))),
+                child: Image.asset(assetImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) => Container(
+                        color: overlayColor.withValues(alpha: 0.5),
+                        child: const Center(
+                            child: Icon(Iconsax.gallery_slash,
+                                color: Colors.white70, size: 40)))),
               ),
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [overlayColor.withValues(alpha: 0.8), overlayColor.withValues(alpha: 0.5)],
+                      colors: [
+                        overlayColor.withValues(alpha: 0.8),
+                        overlayColor.withValues(alpha: 0.5)
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -189,16 +239,29 @@ class ProductCategoryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                    Text(subtitle, style: GoogleFonts.poppins(fontSize: 12, color: Colors.white70)),
+                    Text(title,
+                        style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
+                    Text(subtitle,
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, color: Colors.white70)),
                     const SizedBox(height: 8),
                     RichText(
                       text: TextSpan(
-                        style: GoogleFonts.poppins(color: Colors.white, height: 1.1),
+                        style: GoogleFonts.poppins(
+                            color: Colors.white, height: 1.1),
                         children: [
-                          const TextSpan(text: "UPTO\n", style: TextStyle(fontSize: 10)),
-                          TextSpan(text: warranty, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold)),
-                          const TextSpan(text: " YEARS\nWARRANTY+", style: TextStyle(fontSize: 10)),
+                          const TextSpan(
+                              text: "UPTO\n", style: TextStyle(fontSize: 10)),
+                          TextSpan(
+                              text: warranty,
+                              style: const TextStyle(
+                                  fontSize: 36, fontWeight: FontWeight.bold)),
+                          const TextSpan(
+                              text: " YEARS\nWARRANTY+",
+                              style: TextStyle(fontSize: 10)),
                         ],
                       ),
                     ),
@@ -215,7 +278,9 @@ class ProductCategoryCard extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text("Explore", style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600)),
+                            Text("Explore",
+                                style: GoogleFonts.poppins(
+                                    fontSize: 12, fontWeight: FontWeight.w600)),
                             const SizedBox(width: 4),
                             const Icon(Iconsax.arrow_right_3, size: 14),
                           ],

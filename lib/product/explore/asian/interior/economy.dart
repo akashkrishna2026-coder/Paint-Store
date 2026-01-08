@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:c_h_p/pages/core/cart_page.dart';
 
 class EconomyPage extends StatefulWidget {
   const EconomyPage({super.key});
@@ -17,7 +18,6 @@ class EconomyPage extends StatefulWidget {
 }
 
 class _EconomyPageState extends State<EconomyPage> {
-
   // Use a Future for a more efficient, one-time data fetch.
   Future<List<Product>> _fetchProducts() async {
     final query = FirebaseDatabase.instance
@@ -43,12 +43,14 @@ class _EconomyPageState extends State<EconomyPage> {
     if (user == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please log in to add items to your cart.")),
+        const SnackBar(
+            content: Text("Please log in to add items to your cart.")),
       );
       return;
     }
 
-    final cartRef = FirebaseDatabase.instance.ref('users/${user.uid}/cart/${product.key}');
+    final cartRef =
+        FirebaseDatabase.instance.ref('users/${user.uid}/cart/${product.key}');
     try {
       final snapshot = await cartRef.get();
       if (snapshot.exists && snapshot.value is Map) {
@@ -60,7 +62,9 @@ class _EconomyPageState extends State<EconomyPage> {
         await cartRef.set({
           'name': product.name,
           'mainImageUrl': product.mainImageUrl,
-          'packSizes': product.packSizes.asMap().map((_, p) => MapEntry(p.size.replaceAll(' ', ''), p.price)),
+          'packSizes': product.packSizes
+              .asMap()
+              .map((_, p) => MapEntry(p.size.replaceAll(' ', ''), p.price)),
           'quantity': 1,
         });
       }
@@ -93,6 +97,16 @@ class _EconomyPageState extends State<EconomyPage> {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Iconsax.shopping_cart),
+            tooltip: 'Cart',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CartPage()),
+            ),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
           child: Container(color: Colors.grey.shade200, height: 1.0),
@@ -120,7 +134,8 @@ class _EconomyPageState extends State<EconomyPage> {
               return _buildProductCard(context, product)
                   .animate()
                   .fadeIn(duration: 600.ms, delay: (150 * index).ms)
-                  .moveX(begin: -30, duration: 600.ms, curve: Curves.easeOutCubic);
+                  .moveX(
+                      begin: -30, duration: 600.ms, curve: Curves.easeOutCubic);
             },
           );
         },
@@ -130,10 +145,14 @@ class _EconomyPageState extends State<EconomyPage> {
 
   Widget _buildProductCard(BuildContext context, Product product) {
     // Safely get the price of the first pack size to display
-    final priceToShow = product.packSizes.isNotEmpty ? product.packSizes.first.price : 'N/A';
+    final priceToShow =
+        product.packSizes.isNotEmpty ? product.packSizes.first.price : 'N/A';
 
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailPage(product: product))),
+      onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => ProductDetailPage(product: product))),
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
         height: 140,
@@ -151,17 +170,21 @@ class _EconomyPageState extends State<EconomyPage> {
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
+              borderRadius:
+                  const BorderRadius.horizontal(left: Radius.circular(20)),
               // ⭐ FIX: Use mainImageUrl from the updated model
               child: CachedNetworkImage(
                 imageUrl: product.mainImageUrl,
                 fit: BoxFit.cover,
                 width: 130,
                 height: double.infinity,
-                placeholder: (context, url) => Container(color: Colors.grey.shade100),
+                placeholder: (context, url) =>
+                    Container(color: Colors.grey.shade100),
                 errorWidget: (c, e, s) => Container(
                   color: Colors.grey.shade100,
-                  child: Center(child: Icon(Iconsax.gallery_slash, size: 40, color: Colors.grey.shade400)),
+                  child: Center(
+                      child: Icon(Iconsax.gallery_slash,
+                          size: 40, color: Colors.grey.shade400)),
                 ),
               ),
             ),
@@ -174,7 +197,10 @@ class _EconomyPageState extends State<EconomyPage> {
                   children: [
                     Text(
                       product.name,
-                      style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+                      style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -186,7 +212,10 @@ class _EconomyPageState extends State<EconomyPage> {
                         // ⭐ FIX: Show starting price from the pack sizes
                         Text(
                           'Starts at ₹$priceToShow',
-                          style: GoogleFonts.lato(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF3A3A3A)),
+                          style: GoogleFonts.lato(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF3A3A3A)),
                         ),
                         SizedBox(
                           height: 40,
@@ -198,7 +227,8 @@ class _EconomyPageState extends State<EconomyPage> {
                               backgroundColor: Colors.deepOrange,
                               foregroundColor: Colors.white,
                               elevation: 2,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
                             ),
                             child: const Icon(Iconsax.shopping_bag, size: 20),
                           ),
@@ -226,13 +256,17 @@ class _EconomyPageState extends State<EconomyPage> {
             const SizedBox(height: 20),
             Text(
               "No Products Available",
-              style: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black54),
+              style: GoogleFonts.playfairDisplay(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black54),
             ),
             const SizedBox(height: 8),
             Text(
               "It seems there are no products in this category at the moment.",
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(color: Colors.grey.shade500, fontSize: 14),
+              style: GoogleFonts.poppins(
+                  color: Colors.grey.shade500, fontSize: 14),
             ),
           ],
         ).animate().fadeIn(duration: 300.ms),
@@ -251,13 +285,17 @@ class _EconomyPageState extends State<EconomyPage> {
             const SizedBox(height: 20),
             Text(
               "Something Went Wrong",
-              style: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black54),
+              style: GoogleFonts.playfairDisplay(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black54),
             ),
             const SizedBox(height: 8),
             Text(
               "We couldn't load the products. Please check your connection and try again.",
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(color: Colors.grey.shade500, fontSize: 14),
+              style: GoogleFonts.poppins(
+                  color: Colors.grey.shade500, fontSize: 14),
             ),
           ],
         ).animate().fadeIn(duration: 300.ms),

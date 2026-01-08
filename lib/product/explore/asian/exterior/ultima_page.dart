@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:c_h_p/pages/core/cart_page.dart';
 
 class UltimaPage extends StatefulWidget {
   const UltimaPage({super.key});
@@ -48,12 +49,24 @@ class _UltimaPageState extends State<UltimaPage> {
       // Slightly lighter background for a softer feel
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: Text("Ultima Emulsions", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+        title: Text("Ultima Emulsions",
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
         backgroundColor: Colors.white,
         // ⭐ Makeover: Removed elevation for a flatter look
         elevation: 0,
         scrolledUnderElevation: 1, // Add subtle elevation back on scroll
         iconTheme: IconThemeData(color: Colors.grey.shade800),
+        actions: [
+          IconButton(
+            icon: const Icon(Iconsax.shopping_cart),
+            tooltip: 'Cart',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CartPage()),
+            ),
+          ),
+        ],
         // Optional: Add a subtle bottom border instead of elevation
         // bottom: PreferredSize(
         //   preferredSize: Size.fromHeight(1.0),
@@ -70,7 +83,8 @@ class _UltimaPageState extends State<UltimaPage> {
             return Center(child: Text("Error: ${snapshot.error}"));
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text("No products found in this category."));
+            return const Center(
+                child: Text("No products found in this category."));
           }
 
           final ultimaProducts = snapshot.data!;
@@ -101,13 +115,15 @@ class _UltimaPageState extends State<UltimaPage> {
 
   // ⭐ MAKEOVER: Updated card with more rounding and softer shadow
   Widget _buildProductCard(BuildContext context, Product product) {
-    final priceToShow = product.packSizes.isNotEmpty ? product.packSizes.first.price : 'N/A';
+    final priceToShow =
+        product.packSizes.isNotEmpty ? product.packSizes.first.price : 'N/A';
 
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => ProductDetailPage(product: product)),
+          MaterialPageRoute(
+              builder: (_) => ProductDetailPage(product: product)),
         );
       },
       child: Container(
@@ -139,9 +155,11 @@ class _UltimaPageState extends State<UltimaPage> {
                   child: CachedNetworkImage(
                     imageUrl: product.mainImageUrl,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(color: Colors.grey.shade200),
+                    placeholder: (context, url) =>
+                        Container(color: Colors.grey.shade200),
                     errorWidget: (context, url, error) => const Center(
-                      child: Icon(Iconsax.gallery_slash, size: 40, color: Colors.grey),
+                      child: Icon(Iconsax.gallery_slash,
+                          size: 40, color: Colors.grey),
                     ),
                   ),
                 ),
@@ -155,7 +173,10 @@ class _UltimaPageState extends State<UltimaPage> {
                   children: [
                     Text(
                       product.name,
-                      style: GoogleFonts.poppins(fontSize: 14.5, fontWeight: FontWeight.w600), // Slightly adjusted font size
+                      style: GoogleFonts.poppins(
+                          fontSize: 14.5,
+                          fontWeight:
+                              FontWeight.w600), // Slightly adjusted font size
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),

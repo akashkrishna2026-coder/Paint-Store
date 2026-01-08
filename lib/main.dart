@@ -30,9 +30,6 @@ Future<void> main() async {
   );
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  await FCMService.requestPermission();
-  await FCMService.updateForUser(FirebaseAuth.instance.currentUser);
-  await NotificationService.instance.init();
 
   final api = const String.fromEnvironment('RECO_API');
   if (api.isNotEmpty) {
@@ -49,13 +46,32 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
+class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _NoAnimationPageTransitionsBuilder();
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return child;
+  }
+}
+
 class _MyAppState extends State<MyApp> {
   bool? _isFirstTime;
+  bool _assetsPrecached = false;
 
   @override
   void initState() {
     super.initState();
     _checkFirstTime();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initServices();
+      _precacheAppImages();
+    });
     // Keep FCM registration updated with auth state
     FirebaseAuth.instance.authStateChanges().listen((user) {
       FCMService.updateForUser(user);
@@ -65,8 +81,8 @@ class _MyAppState extends State<MyApp> {
       final title = m.notification?.title ?? 'Notification';
       final body = m.notification?.body ?? '';
       final payload = m.data.isNotEmpty ? m.data.toString() : null;
-      NotificationService.instance
-          .showForegroundNotification(title: title, body: body, payload: payload);
+      NotificationService.instance.showForegroundNotification(
+          title: title, body: body, payload: payload);
     });
 
     // Deep-link when user taps an FCM notification from background
@@ -77,6 +93,31 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  Future<void> _initServices() async {
+    try {
+      await NotificationService.instance.init();
+      await FCMService.requestPermission();
+      await FCMService.updateForUser(FirebaseAuth.instance.currentUser);
+    } catch (e) {
+      debugPrint('Startup service init error: $e');
+    }
+  }
+
+  // Precache frequently used asset images once app has a build context
+  void _precacheAppImages() {
+    if (_assetsPrecached) return;
+    final ctx = NotificationService.instance.navigatorKey.currentContext;
+    if (ctx == null) {
+      // Try again on next frame if the navigator context isn't ready yet
+      WidgetsBinding.instance.addPostFrameCallback((_) => _precacheAppImages());
+      return;
+    }
+    precacheImage(const AssetImage('assets/image_b8a96a.jpg'), ctx);
+    precacheImage(const AssetImage('assets/image_b8aca7.jpg'), ctx);
+    precacheImage(const AssetImage('assets/image_b8b0ca.jpg'), ctx);
+    _assetsPrecached = true;
+  }
+
   Future<void> _checkFirstTime() async {
     // Skip onboarding in test mode
     if (skipOnboardingScreen) {
@@ -85,7 +126,7 @@ class _MyAppState extends State<MyApp> {
       });
       return;
     }
-    
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     bool isFirstTime = prefs.getBool('isFirstTime') ?? true;
 
@@ -113,12 +154,19 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData(
         primarySwatch: Colors.deepOrange,
         useMaterial3: true,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: <TargetPlatform, PageTransitionsBuilder>{
+            TargetPlatform.android: _NoAnimationPageTransitionsBuilder(),
+            TargetPlatform.iOS: _NoAnimationPageTransitionsBuilder(),
+            TargetPlatform.linux: _NoAnimationPageTransitionsBuilder(),
+            TargetPlatform.macOS: _NoAnimationPageTransitionsBuilder(),
+            TargetPlatform.windows: _NoAnimationPageTransitionsBuilder(),
+          },
+        ),
       ),
       debugShowCheckedModeBanner: false,
       navigatorKey: NotificationService.instance.navigatorKey,
-      home: LoadingScreen(
-        nextPage: _isFirstTime! ? const OnboardingScreen() : _getNextPage(),
-      ),
+      home: _isFirstTime! ? const OnboardingScreen() : _getNextPage(),
     );
   }
 

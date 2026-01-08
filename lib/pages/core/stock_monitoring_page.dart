@@ -13,7 +13,8 @@ class StockMonitoringPage extends StatefulWidget {
 }
 
 class _StockMonitoringPageState extends State<StockMonitoringPage> {
-  final DatabaseReference _productsRef = FirebaseDatabase.instance.ref('products');
+  final DatabaseReference _productsRef =
+      FirebaseDatabase.instance.ref('products');
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
@@ -34,7 +35,9 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update stock: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to update stock: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -42,15 +45,18 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
 
   // Shows a dialog for manually entering a new stock quantity.
   void _showUpdateStockDialog(Product product) {
-    final stockController = TextEditingController(text: product.stock.toString());
+    final stockController =
+        TextEditingController(text: product.stock.toString());
     final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text("Update Stock", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text("Update Stock",
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
           content: Form(
             key: formKey,
             child: TextFormField(
@@ -62,15 +68,20 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                 labelText: "New Quantity for ${product.name}",
                 border: const OutlineInputBorder(),
               ),
-              validator: (value) => (value == null || value.isEmpty) ? 'Please enter a quantity.' : null,
+              validator: (value) => (value == null || value.isEmpty)
+                  ? 'Please enter a quantity.'
+                  : null,
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel")),
             ElevatedButton(
               onPressed: () {
                 if (formKey.currentState!.validate()) {
-                  final newStock = int.tryParse(stockController.text) ?? product.stock;
+                  final newStock =
+                      int.tryParse(stockController.text) ?? product.stock;
                   _updateStock(product.key, newStock);
                   Navigator.pop(context);
                 }
@@ -88,13 +99,16 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: Text("Monitor Stock", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+        title: Text("Monitor Stock",
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
         backgroundColor: Colors.white,
         elevation: 1,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60.0),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -107,7 +121,8 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                 filled: true,
                 fillColor: Colors.grey.shade200,
               ),
-              onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
+              onChanged: (value) =>
+                  setState(() => _searchQuery = value.toLowerCase()),
             ),
           ),
         ),
@@ -116,19 +131,22 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
         stream: _productsRef.onValue,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
+            return const Center(
+                child: CircularProgressIndicator(color: Colors.deepOrange));
           }
           if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
             return const Center(child: Text("No products found."));
           }
 
           final Map<String, Map<String, List<Product>>> categorizedStock = {};
-          final productsMap = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
+          final productsMap =
+              Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
 
           productsMap.forEach((key, value) {
-            final product = Product.fromMap(key, Map<String, dynamic>.from(value));
-            if (_searchQuery.isEmpty || product.name.toLowerCase().contains(_searchQuery)) {
-
+            final product =
+                Product.fromMap(key, Map<String, dynamic>.from(value));
+            if (_searchQuery.isEmpty ||
+                product.name.toLowerCase().contains(_searchQuery)) {
               // ⭐ FIX: Provide a default value if category or brand is null
               final String categoryKey = product.category ?? 'Uncategorized';
               final String brandKey = product.brand ?? 'Unbranded';
@@ -145,6 +163,7 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
 
           return ListView(
             padding: const EdgeInsets.all(16),
+            cacheExtent: 800,
             children: categorizedStock.entries.map((categoryEntry) {
               return _buildCategoryExpansionTile(
                 categoryName: categoryEntry.key,
@@ -170,20 +189,30 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ExpansionTile(
-        leading: Icon(_getIconForCategory(categoryName), color: Colors.deepOrange),
-        title: Text(categoryName, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
+        leading:
+            Icon(_getIconForCategory(categoryName), color: Colors.deepOrange),
+        title: Text(categoryName,
+            style:
+                GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
         trailing: Chip(
-          label: Text("Total: $totalStockInCategory", style: const TextStyle(fontWeight: FontWeight.bold)),
+          label: Text("Total: $totalStockInCategory",
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           backgroundColor: Colors.orange.shade50,
           labelStyle: const TextStyle(color: Colors.deepOrange),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         ),
         children: brandsData.entries.map((brandEntry) {
-          int totalStockInBrand = brandEntry.value.fold(0, (sum, product) => sum + product.stock);
+          int totalStockInBrand =
+              brandEntry.value.fold(0, (sum, product) => sum + product.stock);
           return ExpansionTile(
-            title: Text(brandEntry.key, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-            trailing: Chip(label: Text("Stock: $totalStockInBrand"), backgroundColor: Colors.grey.shade200),
-            children: brandEntry.value.map((product) => _buildProductListItem(product)).toList(),
+            title: Text(brandEntry.key,
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            trailing: Chip(
+                label: Text("Stock: $totalStockInBrand"),
+                backgroundColor: Colors.grey.shade200),
+            children: brandEntry.value
+                .map((product) => _buildProductListItem(product))
+                .toList(),
           );
         }).toList(),
       ),
@@ -200,7 +229,8 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
       stockColor = Colors.green.shade800;
     }
 
-    return Card(
+    return RepaintBoundary(
+        child: Card(
       elevation: 0,
       color: Colors.white,
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -215,11 +245,13 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
           children: [
             Text(
               product.name,
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15),
+              style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600, fontSize: 15),
             ),
             const SizedBox(height: 4),
             Text(
-              product.subCategory ?? 'General', // Safely handle nullable subCategory
+              product.subCategory ??
+                  'General', // Safely handle nullable subCategory
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
             const Divider(height: 20),
@@ -229,7 +261,8 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Current Stock", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text("Current Stock",
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
                     Text(
                       product.stock.toString(),
                       style: GoogleFonts.lato(
@@ -250,12 +283,14 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                     ),
                     IconButton(
                       icon: const Icon(Iconsax.minus_square),
-                      onPressed: () => _updateStock(product.key, product.stock - 1),
+                      onPressed: () =>
+                          _updateStock(product.key, product.stock - 1),
                       tooltip: "Decrease Stock",
                     ),
                     IconButton(
                       icon: const Icon(Iconsax.add_square),
-                      onPressed: () => _updateStock(product.key, product.stock + 1),
+                      onPressed: () =>
+                          _updateStock(product.key, product.stock + 1),
                       tooltip: "Increase Stock",
                     ),
                     IconButton(
@@ -271,7 +306,7 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   IconData _getIconForCategory(String categoryName) {

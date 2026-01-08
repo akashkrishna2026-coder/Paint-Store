@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../product_display_page.dart';
+import 'package:c_h_p/pages/core/cart_page.dart';
 
 class AsianPaintsWaterproofingPage extends StatelessWidget {
   const AsianPaintsWaterproofingPage({super.key});
@@ -21,10 +22,22 @@ class AsianPaintsWaterproofingPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: Text("Asian Paints - Waterproofing", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+        title: Text("Asian Paints - Waterproofing",
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
         backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: IconThemeData(color: Colors.grey.shade800),
+        actions: [
+          IconButton(
+            icon: const Icon(Iconsax.shopping_cart),
+            tooltip: 'Cart',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CartPage()),
+            ),
+          ),
+        ],
       ),
       body: GridView.builder(
         padding: const EdgeInsets.all(16),
@@ -41,14 +54,21 @@ class AsianPaintsWaterproofingPage extends StatelessWidget {
             context,
             category['title'],
             category['icon'],
-                () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDisplayPage(title: category['title'], category: "Waterproofing", subCategory: category['title']))),
+            () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => ProductDisplayPage(
+                        title: category['title'],
+                        category: "Waterproofing",
+                        subCategory: category['title']))),
           );
         },
       ),
     );
   }
 
-  Widget _buildGridItem(BuildContext context, String title, IconData icon, VoidCallback onTap) {
+  Widget _buildGridItem(
+      BuildContext context, String title, IconData icon, VoidCallback onTap) {
     return Card(
       elevation: 2,
       shadowColor: Colors.black.withValues(alpha: 0.1),
@@ -64,7 +84,8 @@ class AsianPaintsWaterproofingPage extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15),
+              style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600, fontSize: 15),
             ),
           ],
         ),

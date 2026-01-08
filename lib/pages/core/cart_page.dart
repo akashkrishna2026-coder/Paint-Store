@@ -464,6 +464,7 @@ class _CartPageState extends State<CartPage> {
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            cacheExtent: 600,
             itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -541,20 +542,25 @@ class _CartPageState extends State<CartPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- Image ---
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CachedNetworkImage(
-                  imageUrl: item.imageUrl,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  placeholder: (c, u) => Container(
-                      width: 80, height: 80, color: Colors.grey.shade200),
-                  errorWidget: (c, u, e) => Container(
-                      width: 80,
-                      height: 80,
-                      color: Colors.grey.shade200,
-                      child: const Icon(Iconsax.gallery_slash))),
+            RepaintBoundary(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(
+                    imageUrl: item.imageUrl,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    memCacheWidth: 160,
+                    fadeInDuration: const Duration(milliseconds: 120),
+                    fadeOutDuration: const Duration(milliseconds: 80),
+                    placeholder: (c, u) => Container(
+                        width: 80, height: 80, color: Colors.grey.shade200),
+                    errorWidget: (c, u, e) => Container(
+                        width: 80,
+                        height: 80,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Iconsax.gallery_slash))),
+              ),
             ),
             const SizedBox(width: 16),
             // --- Details Column ---

@@ -6,7 +6,8 @@ import 'package:iconsax/iconsax.dart';
 // Ensure these paths are correct for your project
 import '../admin/admin_dashboard_page.dart';
 import '../manager/manager_dashboard_page.dart';
-import '../auth/personal_info_page.dart';
+// Removed Profile navigation from drawer per request
+import '../pages/core/report_issue_page.dart';
 
 class HomeDrawer extends StatelessWidget {
   final User? currentUser;
@@ -27,13 +28,22 @@ class HomeDrawer extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           UserAccountsDrawerHeader(
-            accountName: Text(currentUser?.displayName ?? 'Guest User', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18)),
-            accountEmail: Text(currentUser?.email ?? 'Not logged in', style: GoogleFonts.poppins()),
+            accountName: Text(currentUser?.displayName ?? 'Guest User',
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold, fontSize: 18)),
+            accountEmail: Text(currentUser?.email ?? 'Not logged in',
+                style: GoogleFonts.poppins()),
             currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
-              backgroundImage: (currentUser?.photoURL != null) ? NetworkImage(currentUser!.photoURL!) : null,
+              backgroundImage: (currentUser?.photoURL != null)
+                  ? NetworkImage(currentUser!.photoURL!)
+                  : null,
               child: (currentUser?.photoURL == null)
-                  ? Text(currentUser?.displayName?.substring(0, 1).toUpperCase() ?? 'G', style: const TextStyle(fontSize: 40.0, color: Colors.deepOrange))
+                  ? Text(
+                      currentUser?.displayName?.substring(0, 1).toUpperCase() ??
+                          'G',
+                      style: const TextStyle(
+                          fontSize: 40.0, color: Colors.deepOrange))
                   : null,
             ),
             decoration: const BoxDecoration(color: Colors.deepOrange),
@@ -42,16 +52,6 @@ class HomeDrawer extends StatelessWidget {
             icon: Iconsax.home_2,
             title: 'Home',
             onTap: () => Navigator.pop(context), // Just close the drawer
-          ),
-          _buildDrawerItem(
-            icon: Iconsax.user_edit,
-            title: 'Profile',
-            onTap: () {
-              Navigator.pop(context);
-              if (currentUser != null) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const PersonalInfoPage()));
-              }
-            },
           ),
           const Divider(),
 
@@ -62,7 +62,10 @@ class HomeDrawer extends StatelessWidget {
               title: 'Admin Panel',
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardPage()));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const AdminDashboardPage()));
               },
             ),
 
@@ -72,11 +75,29 @@ class HomeDrawer extends StatelessWidget {
               title: 'Manager Panel',
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ManagerDashboardPage()));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ManagerDashboardPage()));
               },
             ),
 
           if (userRole == 'Admin' || userRole == 'Manager') const Divider(),
+
+          // Submit Report navigation
+          _buildDrawerItem(
+            icon: Iconsax.warning_2,
+            title: 'Submit Report !',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ReportIssuePage()),
+              );
+            },
+          ),
+
+          const Divider(),
 
           // ⭐ FIX: This now correctly calls the logout function passed from HomePage.
           _buildDrawerItem(
@@ -89,10 +110,15 @@ class HomeDrawer extends StatelessWidget {
     );
   }
 
-  Widget _buildDrawerItem({required IconData icon, required String title, required VoidCallback onTap}) {
+  Widget _buildDrawerItem(
+      {required IconData icon,
+      required String title,
+      required VoidCallback onTap}) {
     return ListTile(
       leading: Icon(icon, color: Colors.grey.shade700),
-      title: Text(title, style: GoogleFonts.poppins(fontSize: 15, color: Colors.grey.shade800)),
+      title: Text(title,
+          style:
+              GoogleFonts.poppins(fontSize: 15, color: Colors.grey.shade800)),
       onTap: onTap,
     );
   }

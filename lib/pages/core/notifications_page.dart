@@ -14,7 +14,7 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
-  final bool _animatedOnce = false;
+  bool _animatedOnce = false;
   @override
   void initState() {
     super.initState();
@@ -23,6 +23,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _markNotificationsAsRead(FirebaseDatabase.instance
             .ref('users/${currentUser.uid}/notifications'));
+        if (mounted) setState(() => _animatedOnce = true);
       });
     }
   }
@@ -78,9 +79,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
 
     final db = FirebaseDatabase.instance.ref();
-    final DatabaseReference notificationsRef = db.child('users/${currentUser.uid}/notifications');
+    final DatabaseReference notificationsRef =
+        db.child('users/${currentUser.uid}/notifications');
     final DatabaseReference userRef = db.child('users/${currentUser.uid}');
-    final DatabaseReference dismissedRef = db.child('users/${currentUser.uid}/dismissedNotifications');
+    final DatabaseReference dismissedRef =
+        db.child('users/${currentUser.uid}/dismissedNotifications');
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
@@ -104,7 +107,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
         future: userRef.get(),
         builder: (context, userSnap) {
           final userType = (userSnap.data?.value is Map)
-              ? (Map<String, dynamic>.from(userSnap.data!.value as Map)['userType'] ?? '').toString()
+              ? (Map<String, dynamic>.from(
+                          userSnap.data!.value as Map)['userType'] ??
+                      '')
+                  .toString()
               : '';
 
           final bool isManager = userType == 'Manager';
@@ -117,17 +123,24 @@ class _NotificationsPageState extends State<NotificationsPage> {
             stream: dismissedRef.onValue,
             builder: (context, dismissedSnap) {
               final Set<String> dismissed = {};
-              if (dismissedSnap.hasData && dismissedSnap.data!.snapshot.value is Map) {
-                final m = Map<String, dynamic>.from(dismissedSnap.data!.snapshot.value as Map);
+              if (dismissedSnap.hasData &&
+                  dismissedSnap.data!.snapshot.value is Map) {
+                final m = Map<String, dynamic>.from(
+                    dismissedSnap.data!.snapshot.value as Map);
                 dismissed.addAll(m.keys.map((k) => k.toString()));
               }
 
               return StreamBuilder<DatabaseEvent>(
-                stream: notificationsRef.orderByChild('timestamp').onValue,
+                stream: notificationsRef
+                    .orderByChild('timestamp')
+                    .limitToLast(100)
+                    .onValue,
                 builder: (context, personalSnap) {
                   final List<Map<String, dynamic>> personal = [];
-                  if (personalSnap.hasData && personalSnap.data!.snapshot.value is Map) {
-                    final m = Map<String, dynamic>.from(personalSnap.data!.snapshot.value as Map);
+                  if (personalSnap.hasData &&
+                      personalSnap.data!.snapshot.value is Map) {
+                    final m = Map<String, dynamic>.from(
+                        personalSnap.data!.snapshot.value as Map);
                     personal.addAll(
                       m.entries.map((e) => {
                             'key': e.key,
@@ -142,25 +155,36 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     // Filter out any personal notifications that match dismissed signature (unlikely but safe)
                     final filtered = personal.where((it) {
                       final data = it['data'] as Map<String, dynamic>;
-                      final sig = '${(data['type'] ?? '').toString()}|${(data['timestamp'] ?? 0).toString()}|${(data['message'] ?? '').toString()}';
+                      final sig =
+                          '${(data['type'] ?? '').toString()}|${(data['timestamp'] ?? 0).toString()}|${(data['message'] ?? '').toString()}';
                       return !dismissed.contains(sig);
                     }).toList()
                       ..sort((a, b) {
-                        final at = ((a['data'] as Map<String, dynamic>)['timestamp'] ?? 0) as int;
-                        final bt = ((b['data'] as Map<String, dynamic>)['timestamp'] ?? 0) as int;
+                        final at =
+                            ((a['data'] as Map<String, dynamic>)['timestamp'] ??
+                                0) as int;
+                        final bt =
+                            ((b['data'] as Map<String, dynamic>)['timestamp'] ??
+                                0) as int;
                         return bt.compareTo(at);
                       });
                     return _buildList(context, filtered, dismissedRef);
                   }
 
                   // For Manager/Admin, also include global channel
-                  final globalRef = isAdmin ? globalAdminsRef : globalManagersRef;
+                  final globalRef =
+                      isAdmin ? globalAdminsRef : globalManagersRef;
                   return StreamBuilder<DatabaseEvent>(
-                    stream: globalRef.orderByChild('timestamp').onValue,
+                    stream: globalRef
+                        .orderByChild('timestamp')
+                        .limitToLast(100)
+                        .onValue,
                     builder: (context, globalSnap) {
                       final List<Map<String, dynamic>> global = [];
-                      if (globalSnap.hasData && globalSnap.data!.snapshot.value is Map) {
-                        final m = Map<String, dynamic>.from(globalSnap.data!.snapshot.value as Map);
+                      if (globalSnap.hasData &&
+                          globalSnap.data!.snapshot.value is Map) {
+                        final m = Map<String, dynamic>.from(
+                            globalSnap.data!.snapshot.value as Map);
                         global.addAll(
                           m.entries.map((e) => {
                                 'key': e.key,
@@ -186,11 +210,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           }
                         }
                       }
+
                       addAllDedup(personal);
                       addAllDedup(global);
                       merged.sort((a, b) {
-                        final at = ((a['data'] as Map<String, dynamic>)['timestamp'] ?? 0) as int;
-                        final bt = ((b['data'] as Map<String, dynamic>)['timestamp'] ?? 0) as int;
+                        final at =
+                            ((a['data'] as Map<String, dynamic>)['timestamp'] ??
+                                0) as int;
+                        final bt =
+                            ((b['data'] as Map<String, dynamic>)['timestamp'] ??
+                                0) as int;
                         return bt.compareTo(at);
                       });
                       return _buildList(context, merged, dismissedRef);
@@ -205,7 +234,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 
-  Widget _buildList(BuildContext context, List<Map<String, dynamic>> items, DatabaseReference dismissedRef) {
+  Widget _buildList(BuildContext context, List<Map<String, dynamic>> items,
+      DatabaseReference dismissedRef) {
     if (items.isEmpty) {
       return Center(
         child: Column(
@@ -225,12 +255,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final notificationKey = items[index]['key'] as String;
-        final notificationData = Map<String, dynamic>.from(items[index]['data'] as Map);
+        final notificationData =
+            Map<String, dynamic>.from(items[index]['data'] as Map);
         final itemRef = items[index]['ref'] as DatabaseReference;
         final src = (items[index]['src'] as String? ?? 'p');
         final tsValue = notificationData['timestamp'];
-        final timestamp = tsValue is int ? DateTime.fromMillisecondsSinceEpoch(tsValue) : null;
-        final formattedDate = timestamp != null ? DateFormat('MMM d, yyyy - h:mm a').format(timestamp) : '';
+        final timestamp = tsValue is int
+            ? DateTime.fromMillisecondsSinceEpoch(tsValue)
+            : null;
+        final formattedDate = timestamp != null
+            ? DateFormat('MMM d, yyyy - h:mm a').format(timestamp)
+            : '';
 
         final itemCard = Dismissible(
           key: ValueKey<String>('${src}_$notificationKey'),
@@ -238,7 +273,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
           confirmDismiss: (direction) async {
             try {
               final data = notificationData;
-              final sig = '${(data['type'] ?? '').toString()}|${(data['timestamp'] ?? 0).toString()}|${(data['message'] ?? '').toString()}';
+              final sig =
+                  '${(data['type'] ?? '').toString()}|${(data['timestamp'] ?? 0).toString()}|${(data['message'] ?? '').toString()}';
               if (src == 'g') {
                 await dismissedRef.child(sig).set(true);
               } else {
@@ -260,9 +296,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: const Icon(Iconsax.trash, color: Colors.white),
           ),
-          child: _buildNotificationCard(
-            notificationData: notificationData,
-            formattedDate: formattedDate,
+          child: RepaintBoundary(
+            child: _buildNotificationCard(
+              notificationData: notificationData,
+              formattedDate: formattedDate,
+            ),
           ),
         );
 
@@ -303,7 +341,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
           backgroundColor: Colors.deepOrange,
           child: Icon(Iconsax.message_text_1, color: Colors.white, size: 20),
         ),
-        title: Text(data['message'] ?? 'New Notification', style: GoogleFonts.poppins()),
+        title: Text(data['message'] ?? 'New Notification',
+            style: GoogleFonts.poppins()),
         subtitle: Text(date, style: GoogleFonts.poppins(fontSize: 12)),
       ),
     );
@@ -311,16 +350,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Widget _buildOrderNotificationCard(Map<String, dynamic> data, String date) {
     final orderDetails = Map<String, dynamic>.from(data['orderDetails'] ?? {});
-    final products = orderDetails['products'] is List 
-        ? List<String>.from(orderDetails['products']) 
+    final products = orderDetails['products'] is List
+        ? List<String>.from(orderDetails['products'])
         : <String>[];
     final totalAmount = (orderDetails['totalAmount'] ?? 0.0).toString();
-    final deliveryAddress = (orderDetails['deliveryAddress'] ?? 'Not specified').toString();
-    final location = orderDetails['location'] is Map 
-        ? Map<String, dynamic>.from(orderDetails['location']) 
+    final deliveryAddress =
+        (orderDetails['deliveryAddress'] ?? 'Not specified').toString();
+    final location = orderDetails['location'] is Map
+        ? Map<String, dynamic>.from(orderDetails['location'])
         : null;
-    final customer = orderDetails['customer'] is Map 
-        ? Map<String, dynamic>.from(orderDetails['customer']) 
+    final customer = orderDetails['customer'] is Map
+        ? Map<String, dynamic>.from(orderDetails['customer'])
         : {};
 
     return Card(
@@ -342,7 +382,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(Iconsax.shopping_bag, color: Colors.green.shade600, size: 24),
+                  child: Icon(Iconsax.shopping_bag,
+                      color: Colors.green.shade600, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -367,7 +408,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.green.shade100,
                     borderRadius: BorderRadius.circular(20),
@@ -384,7 +426,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ],
             ),
             const Divider(height: 24),
-            
+
             // Products
             if (products.isNotEmpty) ...[
               Row(
@@ -416,7 +458,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ),
               const SizedBox(height: 12),
             ],
-            
+
             // Customer Info
             if (customer.isNotEmpty) ...[
               Row(
@@ -441,10 +483,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           customer['name'] ?? 'N/A',
                           style: GoogleFonts.poppins(fontSize: 13),
                         ),
-                        if (customer['phone'] != null && customer['phone'] != 'N/A')
+                        if (customer['phone'] != null &&
+                            customer['phone'] != 'N/A')
                           Text(
                             '📱 ${customer['phone']}',
-                            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
+                            style: GoogleFonts.poppins(
+                                fontSize: 12, color: Colors.grey.shade600),
                           ),
                       ],
                     ),
@@ -453,7 +497,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ),
               const SizedBox(height: 12),
             ],
-            
+
             // Delivery Address
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,12 +521,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         deliveryAddress,
                         style: GoogleFonts.poppins(fontSize: 13),
                       ),
-                      
+
                       // Location coordinates if available
-                      if (location != null && location['lat'] != null && location['lng'] != null) ...[
+                      if (location != null &&
+                          location['lat'] != null &&
+                          location['lng'] != null) ...[
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(6),
@@ -490,7 +537,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Iconsax.gps, size: 14, color: Colors.blue.shade700),
+                              Icon(Iconsax.gps,
+                                  size: 14, color: Colors.blue.shade700),
                               const SizedBox(width: 4),
                               Text(
                                 'Lat: ${location['lat']}, Lng: ${location['lng']}',

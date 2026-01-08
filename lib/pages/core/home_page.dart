@@ -2,9 +2,7 @@ import 'dart:async';
 import 'package:c_h_p/auth/login_page.dart';
 import 'package:c_h_p/model/product_model.dart';
 import 'package:c_h_p/pages/color_catalogue_page.dart';
-import 'package:c_h_p/pages/core/cart_page.dart';
 import 'package:c_h_p/pages/core/notifications_page.dart';
-import 'package:c_h_p/pages/core/report_issue_page.dart';
 import 'package:c_h_p/product/explore_product.dart';
 import 'package:c_h_p/product/latest_colors_page.dart';
 import 'package:c_h_p/product/product_detail_page.dart';
@@ -14,6 +12,7 @@ import 'package:c_h_p/widgets/home_drawer.dart';
 import 'package:c_h_p/widgets/home_sections.dart';
 import 'package:c_h_p/pages/paint_calculator_page.dart';
 import 'package:c_h_p/pages/view_painters_page.dart';
+import 'package:c_h_p/auth/personal_info_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -57,8 +56,8 @@ class _HomePageState extends State<HomePage> {
   List<Product> _suggestions = [];
   Timer? _debounce;
   bool _isSearchLoading = false;
-  int _selectedIndex = 1;
   bool _productsLoaded = false;
+  bool _imagesPrecached = false;
 
   @override
   void initState() {
@@ -71,14 +70,20 @@ class _HomePageState extends State<HomePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    for (var item in scrollItems) {
-      if (item['image'] != null) {
-        precacheImage(AssetImage(item['image']!), context);
+    if (_imagesPrecached) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _imagesPrecached) return;
+      for (var item in scrollItems) {
+        final img = item['image'];
+        if (img != null) {
+          precacheImage(AssetImage(img), context);
+        }
       }
-    }
-    precacheImage(const AssetImage("assets/image_b8a96a.jpg"), context);
-    precacheImage(const AssetImage("assets/image_b8aca7.jpg"), context);
-    precacheImage(const AssetImage("assets/image_b8b0ca.jpg"), context);
+      precacheImage(const AssetImage("assets/image_b8a96a.jpg"), context);
+      precacheImage(const AssetImage("assets/image_b8aca7.jpg"), context);
+      precacheImage(const AssetImage("assets/image_b8b0ca.jpg"), context);
+      _imagesPrecached = true;
+    });
   }
 
   @override
@@ -349,32 +354,41 @@ class _HomePageState extends State<HomePage> {
               offset: const Offset(0, -5))
         ],
       ),
-      child: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() => _selectedIndex = index);
-          switch (index) {
-            case 0:
-              _navigateToWithFade(const ReportIssuePage(), checkAuth: true);
-              break;
-            case 1:
-              _navigateToWithFade(const ExploreProductPage());
-              break;
-            case 2:
-              _navigateToWithFade(const CartPage(), checkAuth: true);
-              break;
-          }
-        },
-        indicatorColor: Colors.deepOrange.shade100,
-        backgroundColor: Colors.transparent,
+      child: BottomAppBar(
+        color: Colors.white,
         elevation: 0,
-        destinations: const [
-          NavigationDestination(
-              icon: Icon(Iconsax.message_question), label: 'Report'),
-          NavigationDestination(icon: Icon(Icons.explore), label: 'Explore'),
-          NavigationDestination(
-              icon: Icon(Iconsax.shopping_cart), label: 'Cart'),
-        ],
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 60,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _BottomItem(
+                  icon: Iconsax.category,
+                  label: 'Catalog',
+                  onTap: () => _navigateToWithFade(const ColorCataloguePage()),
+                ),
+                _BottomItem(
+                  icon: Icons.explore,
+                  label: 'Explore',
+                  onTap: () => _navigateToWithFade(const ExploreProductPage()),
+                ),
+                _BottomItem(
+                  icon: Iconsax.brush_2,
+                  label: 'Visualizer',
+                  onTap: () =>
+                      _navigateToWithFade(const _VisualizerPlaceholder()),
+                ),
+                _BottomItem(
+                  icon: Iconsax.user,
+                  label: 'Profile',
+                  onTap: () => _navigateToWithFade(const PersonalInfoPage()),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -385,16 +399,29 @@ class _HomePageState extends State<HomePage> {
       _showLoginPrompt();
       return;
     }
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => page,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 350),
-      ),
-    );
+    // Use a gentle fade transition only for ExploreProductPage
+    if (page is ExploreProductPage) {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => page,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            );
+            return FadeTransition(opacity: curved, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 260),
+          reverseTransitionDuration: const Duration(milliseconds: 220),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => page),
+      );
+    }
   }
 
   void _handleSearchFocus() {
@@ -483,7 +510,6 @@ class _HomePageState extends State<HomePage> {
                                 borderRadius: BorderRadius.circular(8),
                                 child: RepaintBoundary(
                                   child: CachedNetworkImage(
-                                    // ⭐ FIX: Changed 'imageUrl' to 'mainImageUrl'
                                     imageUrl: product.mainImageUrl,
                                     width: 40,
                                     height: 40,
@@ -560,6 +586,44 @@ class _HomePageState extends State<HomePage> {
           )
         ],
       ),
+    );
+  }
+}
+
+class _BottomItem extends StatelessWidget {
+  const _BottomItem(
+      {required this.icon, required this.label, required this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final color = Colors.grey.shade600;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(height: 2),
+            Text(label, style: GoogleFonts.poppins(color: color, fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VisualizerPlaceholder extends StatelessWidget {
+  const _VisualizerPlaceholder();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Visualizer')),
+      body: const Center(child: Text('Visualizer coming soon')),
     );
   }
 }
