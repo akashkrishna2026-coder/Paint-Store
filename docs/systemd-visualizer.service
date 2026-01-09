@@ -1,0 +1,29 @@
+# Example systemd unit for Visualizer Backend (non-Docker)
+# Place at /etc/systemd/system/visualizer.service and edit paths.
+
+[Unit]
+Description=Visualizer Backend (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=appuser
+Group=appuser
+WorkingDirectory=/opt/visualizer
+# Activate virtualenv and run uvicorn
+ExecStart=/bin/bash -lc 'source .venv/bin/activate && uvicorn visualizer_backend.main:app --host 127.0.0.1 --port 8000 --workers 2 --proxy-headers'
+Restart=always
+RestartSec=5
+Environment=MODEL_PATH=/opt/visualizer/models/segformer_b0_ade20k.onnx
+Environment=ORT_THREADS=1
+Environment=FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+Environment=GOOGLE_APPLICATION_CREDENTIALS=/opt/visualizer/secrets/service_account.json
+Environment=PUBLIC_READ=true
+Environment=MAX_IMAGE_SIDE=1600
+Environment=MIN_MASK_RATIO=0.08
+Environment=WALL_CLASS=12
+Environment=BUILDING_CLASS=2
+Environment=CORS_ORIGINS=https://your.app.domain
+
+[Install]
+WantedBy=multi-user.target
