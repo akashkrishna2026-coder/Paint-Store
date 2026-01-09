@@ -1,28 +1,38 @@
 # Paint Store (Flutter + Firebase)
 
-A modern Flutter application for browsing paints, managing inventory, and shopping with a smooth, mobile-first UX. The app integrates with Firebase for authentication and data, and has recently been migrated to an MVVM architecture using Riverpod.
+[![Flutter CI](https://github.com/akashkrishna2026-coder/Paint-Store/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/akashkrishna2026-coder/Paint-Store/actions/workflows/flutter-ci.yml)
+![Flutter](https://img.shields.io/badge/Flutter-3.29.0-blue?logo=flutter)
+![Dart](https://img.shields.io/badge/Dart-3.7.0-0175C2?logo=dart)
+![Firebase](https://img.shields.io/badge/Firebase-Realtime%20DB-FFCA28?logo=firebase)
+![Platforms](https://img.shields.io/badge/Platforms-Android%20%7C%20iOS%20%7C%20Web-34A853)
+![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
 
-- Flutter
+Production-grade Flutter app for a paint retail experience: browse catalog, view details by pack size, manage cart and checkout, monitor stock, and run manager workflows. Recently migrated to a scalable MVVM architecture using Riverpod.
+
+Highlights
+- Flutter (stable)
 - Firebase Auth + Realtime Database
 - Riverpod (MVVM)
-- Modern UI (Google Fonts, Iconsax, Shimmer, Cached Network Image, flutter_animate)
-- Integration tests included
+- Modern UI: Google Fonts, Iconsax, Shimmer, Cached Network Image, flutter_animate
+- Integration and widget tests
 
 ## Table of Contents
-- **Features**
-- **Screenshots**
-- **Architecture (MVVM with Riverpod)**
-- **Project Structure**
-- **Getting Started**
-- **Firebase Setup**
-- **Running the App**
-- **Testing**
-- **Linting and Formatting**
-- **Environments and Configuration**
-- **Troubleshooting**
-- **Roadmap**
-- **Contributing**
-- **License**
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Tech Stack](#tech-stack)
+- [Architecture (MVVM with Riverpod)](#architecture-mvvm-with-riverpod)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Firebase Setup](#firebase-setup)
+- [Running the App](#running-the-app)
+- [Testing](#testing)
+- [Linting and Formatting](#linting-and-formatting)
+- [Environments and Configuration](#environments-and-configuration)
+- [Quality Gates](#quality-gates)
+- [Troubleshooting](#troubleshooting)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 - **Cart and Checkout**
@@ -44,8 +54,15 @@ Add PNG/JPG screenshots to `screenshots/` and they will render below. Replace pl
   <img src="screenshots/manager_dashboard.png" alt="Manager Dashboard" width="360" />
 </p>
 
+## Tech Stack
+- Flutter (Dart)
+- Firebase Authentication
+- Firebase Realtime Database
+- Riverpod (state management / MVVM)
+- Android/iOS/Web targets
+
 ## Architecture: MVVM with Riverpod
-This codebase was migrated to MVVM to improve testability, separation of concerns, and scaling.
+This codebase was migrated to MVVM to improve testability, separation of concerns, and scaling. Views are declarative and dumb; ViewModels own state and orchestration; repositories/services isolate IO and side‑effects.
 
 - **Model**: Domain/data models (`lib/model/`)
 - **View**: Flutter UI screens (`lib/pages/`, `lib/widgets/`)
@@ -62,6 +79,11 @@ Migration Notes
 - StatefulWidget logic moved to ViewModels
 - Business rules moved from Widgets into Repositories/Services
 - Navigation and side effects initiated by ViewModels with safe UI bindings
+
+Design Principles
+- One responsibility per layer; no business logic in widgets
+- Pure ViewModels (no platform APIs); side-effects go through repositories/services
+- Providers are the only DI boundary; no global singletons
 
 ## Project Structure
 ```
@@ -188,6 +210,11 @@ flutter test integration_test
 - Ensure Firebase configs per environment
 - Guard any API keys or secrets (do not commit)
 
+## Quality Gates
+- CI status badge at top (GitHub Actions)
+- PRs must pass `flutter analyze` (no warnings) and `flutter test`
+- Optional: enable branch protection on `main` and require CI passing
+
 ## Troubleshooting
 - After merges:
   - `flutter clean && flutter pub get`
@@ -205,6 +232,9 @@ Included workflow: `.github/workflows/flutter-ci.yml`
 - Runs `flutter pub get`, `flutter analyze`, and `flutter test`
 
 Extend it to build and upload artifacts if needed.
+
+Badge
+- [Flutter CI](https://github.com/akashkrishna2026-coder/Paint-Store/actions/workflows/flutter-ci.yml/badge.svg)
 
 ## Roadmap
 - Offline caching and resilience
@@ -225,3 +255,10 @@ Notes for this repository
 - The project recently migrated to MVVM using Riverpod (see commit messages).
 - Key UI pages include cart, home, product explore pages, and manager views.
 - Firebase integration is required for login and data.
+
+## For Hiring Managers
+- MVVM migration demonstrates refactoring of a production app to a scalable, testable architecture
+- Strong Firebase integration experience (Auth, Realtime DB, rules)
+- CI-driven quality with analyze/tests on PRs
+- UI/UX polish: animation, caching, modern component libraries
+- Comfortable with conflict resolution, repo hygiene, and documentation
