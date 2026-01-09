@@ -71,6 +71,68 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
     );
   }
 
+  Widget _buildPackSizeCard(String size, String price, bool selected) {
+    final showPrice = price.isNotEmpty && price != '0' && price != 'N/A';
+    return Container(
+      width: 110,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: selected ? Colors.deepOrange : Colors.grey.shade200,
+          width: selected ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 40,
+            width: 40,
+            decoration: BoxDecoration(
+              color: selected
+                  ? Colors.deepOrange.withValues(alpha: 0.1)
+                  : const Color(0xFFF6F6F6),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Iconsax.cup,
+              size: 22,
+              color: selected ? Colors.deepOrange : Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            size,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            showPrice ? 'MRP ₹$price' : 'MRP —',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: selected ? Colors.deepOrange : Colors.grey.shade600,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRightDetails(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,6 +161,24 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
           ),
         ),
         const SizedBox(height: 10),
+        if (widget.product.benefits.isNotEmpty &&
+            (widget.product.benefits.first.image).isNotEmpty)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              height: 160,
+              color: Colors.white,
+              child: CachedNetworkImage(
+                imageUrl: widget.product.benefits.first.image,
+                fit: BoxFit.cover,
+                placeholder: (c, u) => Container(color: Colors.grey.shade200),
+                errorWidget: (c, e, s) => Container(
+                    color: Colors.grey.shade200,
+                    child: const Center(child: Icon(Iconsax.gallery_slash))),
+              ),
+            ),
+          ),
+        if (widget.product.benefits.isNotEmpty) const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -150,7 +230,7 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
                             ),
                         ],
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
         ),
@@ -167,29 +247,21 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
           ),
         ),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: widget.product.packSizes.map((ps) {
-            final selected = _selectedPack?.size == ps.size;
-            return ChoiceChip(
-              label: Text(
-                ps.size,
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-              ),
-              selected: selected,
-              onSelected: (_) => setState(() => _selectedPack = ps),
-              selectedColor: Colors.deepOrange.shade50,
-              shape: StadiumBorder(
-                  side: BorderSide(
-                      color: selected
-                          ? Colors.deepOrange
-                          : const Color(0xFFE0E0E0))),
-              backgroundColor: Colors.white,
-              labelStyle: GoogleFonts.poppins(
-                  color: selected ? Colors.deepOrange : Colors.black87),
-            );
-          }).toList(),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: widget.product.packSizes.map((ps) {
+              final selected = _selectedPack?.size == ps.size;
+              return Padding(
+                padding: const EdgeInsets.only(right: 10.0),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => setState(() => _selectedPack = ps),
+                  child: _buildPackSizeCard(ps.size, ps.price, selected),
+                ),
+              );
+            }).toList(),
+          ),
         ),
         const SizedBox(height: 8),
         if (_selectedPack != null && _selectedPack!.price.isNotEmpty)
@@ -206,41 +278,8 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
           ),
         const SizedBox(height: 20),
 
-        // Advantages
-        const Divider(height: 1, thickness: 0.5),
-        Text(
-          'Advantages',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.grey.shade800,
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (widget.product.benefits.isEmpty)
-          Text('No advantages listed',
-              style: GoogleFonts.poppins(color: Colors.grey.shade600))
-        else
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: widget.product.benefits
-                .map((b) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.check_circle,
-                              color: Colors.green, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                              child:
-                                  Text(b.text, style: GoogleFonts.poppins())),
-                        ],
-                      ),
-                    ))
-                .toList(),
-          ),
-        const SizedBox(height: 20),
+        // Advantages removed to avoid duplication with Benefits bullets
+        const SizedBox(height: 12),
 
         // Warranty
         if (widget.product.warrantyYears != null &&

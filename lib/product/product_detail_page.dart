@@ -19,12 +19,27 @@ class ProductDetailPage extends ConsumerStatefulWidget {
 }
 
 class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
-  int _selectedBenefitIndex = 0;
   bool _precached = false;
+  PackSize? _selectedPack;
 
   Future<List<Product>> _loadSimilarProducts() async {
     return RecommendationService.fetchSimilarProducts(widget.product,
         limit: 10);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.product.packSizes.isNotEmpty) {
+      try {
+        _selectedPack = widget.product.packSizes.firstWhere(
+          (p) => p.size.trim().startsWith('1 '),
+          orElse: () => widget.product.packSizes.first,
+        );
+      } catch (_) {
+        _selectedPack = widget.product.packSizes.first;
+      }
+    }
   }
 
   @override
@@ -42,8 +57,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     _precached = true;
   }
 
-  // Function to add the default (1L) size product to the user's cart via ViewModel
-  Future<void> _addToCart(Product product) async {
+  // Function to add the selected size product to the user's cart via ViewModel
+  Future<void> _addToCart() async {
     final User? user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       if (!mounted) return;
@@ -52,26 +67,14 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       );
       return;
     }
-
-    // Find default size: prefer starting with "1 ", else first valid priced size
-    PackSize? defaultPackSize;
-    if (product.packSizes.isNotEmpty) {
-      try {
-        defaultPackSize = product.packSizes.firstWhere(
-          (pack) => pack.size.trim().startsWith('1 '),
-          orElse: () => product.packSizes.first,
-        );
-      } catch (_) {
-        defaultPackSize = product.packSizes.first;
-      }
-    }
-    if (defaultPackSize == null ||
-        defaultPackSize.price.isEmpty ||
-        defaultPackSize.price == '0' ||
-        defaultPackSize.price == 'N/A') {
+    final selected = _selectedPack;
+    if (selected == null ||
+        selected.price.isEmpty ||
+        selected.price == '0' ||
+        selected.price == 'N/A') {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Cannot add product: Default size/price unavailable."),
+        content: Text("Please select a valid pack size."),
         backgroundColor: Colors.red,
       ));
       return;
@@ -79,16 +82,16 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
     try {
       await ref.read(cartVMProvider.notifier).addOrUpdateItem(
-            productKey: product.key,
-            name: product.name,
-            mainImageUrl: product.mainImageUrl,
-            size: defaultPackSize.size,
-            price: defaultPackSize.price,
+            productKey: widget.product.key,
+            name: widget.product.name,
+            mainImageUrl: widget.product.mainImageUrl,
+            size: selected.size,
+            price: selected.price,
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content:
-            Text("${product.name} (${defaultPackSize.size}) added to cart!"),
+            Text("${widget.product.name} (${selected.size}) added to cart!"),
         backgroundColor: Colors.green.shade600,
       ));
     } catch (e) {
@@ -227,83 +230,132 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                         fontSize: 15, color: Colors.black54, height: 1.6)),
                 const SizedBox(height: 20),
 
-                // Interactive Benefits Section (any count, image/text fallback)
-                if (widget.product.benefits.isNotEmpty) ...[
-                  const Divider(height: 1, thickness: 0.5), // Subtle separator
-                  _buildSectionTitle('Benefits'),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 400),
-                    transitionBuilder: (child, animation) =>
-                        FadeTransition(opacity: animation, child: child),
-                    child: Builder(
-                      key: ValueKey<int>(_selectedBenefitIndex),
-                      builder: (context) {
-                        final benefits = widget.product.benefits;
-                        final count = benefits.length;
-                        final selIdx = count == 0
-                            ? 0
-                            : (_selectedBenefitIndex.clamp(0, count - 1));
-                        final imageUrl = benefits[selIdx].image;
-                        final text = benefits[selIdx].text;
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            color: Colors.white,
-                            height: 250,
-                            alignment: Alignment.center,
-                            child: (imageUrl.isNotEmpty)
-                                ? CachedNetworkImage(
-                                    imageUrl: imageUrl,
-                                    fit: BoxFit.contain,
-                                    fadeInDuration:
-                                        const Duration(milliseconds: 160),
-                                    placeholder: (context, url) =>
-                                        Container(color: Colors.grey.shade200),
-                                    errorWidget: (c, u, e) => const Center(
-                                        child: Icon(Iconsax.gallery_slash)),
-                                  )
-                                : Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Text(
-                                      text,
-                                      textAlign: TextAlign.center,
-                                      style: GoogleFonts.poppins(
-                                          fontSize: 14, color: Colors.black87),
-                                    ),
-                                  ),
-                          ),
-                        );
-                      },
+                // Benefits section (banner image + bullet list)
+                const Divider(height: 1, thickness: 0.5),
+                _buildSectionTitle('Benefits'),
+                if (widget.product.benefits.isNotEmpty &&
+                    widget.product.benefits.first.image.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      height: 160,
+                      color: Colors.white,
+                      child: CachedNetworkImage(
+                        imageUrl: widget.product.benefits.first.image,
+                        fit: BoxFit.cover,
+                        placeholder: (c, u) =>
+                            Container(color: Colors.grey.shade200),
+                        errorWidget: (c, e, s) => Container(
+                          color: Colors.grey.shade200,
+                          child:
+                              const Center(child: Icon(Iconsax.gallery_slash)),
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children:
-                        List.generate(widget.product.benefits.length, (index) {
-                      return _buildBenefitSelector(
-                        text: widget.product.benefits[index].text,
-                        isSelected: _selectedBenefitIndex == index,
-                        onTap: () =>
-                            setState(() => _selectedBenefitIndex = index),
-                      );
-                    }),
+                if (widget.product.benefits.isNotEmpty)
+                  const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                ],
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  child: widget.product.benefits.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'No benefits listed',
+                            style: GoogleFonts.poppins(
+                                color: Colors.grey.shade600),
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            ...widget.product.benefits
+                                .asMap()
+                                .entries
+                                .map((entry) {
+                              final i = entry.key;
+                              final b = entry.value;
+                              return Column(
+                                children: [
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(Icons.check_circle,
+                                          color: Colors.green, size: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          b.text,
+                                          style: GoogleFonts.poppins(
+                                              color: Colors.black87),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (i < widget.product.benefits.length - 1)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 10.0),
+                                      child: Divider(
+                                          height: 1,
+                                          color: Colors.grey.shade200),
+                                    ),
+                                ],
+                              );
+                            })
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 20),
 
                 // Pack Sizes Section
                 if (packSizesToDisplay.isNotEmpty) ...[
                   const Divider(height: 1, thickness: 0.5),
                   _buildSectionTitle('Pack Sizes Available'),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: packSizesToDisplay
-                        .map(
-                            (pack) => _buildPackSizeItem(pack.size, pack.price))
-                        .toList(),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: packSizesToDisplay.map((ps) {
+                        final selected = _selectedPack?.size == ps.size;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 10.0),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => setState(() => _selectedPack = ps),
+                            child:
+                                _buildPackSizeCard(ps.size, ps.price, selected),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
+                  const SizedBox(height: 8),
+                  if (_selectedPack != null && _selectedPack!.price.isNotEmpty)
+                    Row(
+                      children: [
+                        Text('MRP  ',
+                            style: GoogleFonts.poppins(
+                                color: Colors.grey.shade700)),
+                        Text('₹${_selectedPack!.price}',
+                            style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                                color: Colors.deepOrange.shade700)),
+                      ],
+                    ),
                   Padding(
                     // Disclaimer text
                     padding: const EdgeInsets.only(top: 10.0),
@@ -428,9 +480,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   offset: const Offset(0, -5))
             ]),
         child: ElevatedButton.icon(
-          onPressed: () => _addToCart(widget.product),
+          onPressed: _addToCart,
           icon: const Icon(Iconsax.shopping_bag),
-          label: const Text('Add to Cart (1L)'), // Indicate default size
+          label: Text(_selectedPack == null
+              ? 'Add to Cart'
+              : 'Add to Cart (${_selectedPack!.size})'),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
             backgroundColor: Colors.deepOrange,
@@ -460,91 +514,63 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     );
   }
 
-  // Builds one of the clickable benefit selectors
-  Widget _buildBenefitSelector(
-      {required String text,
-      required bool isSelected,
-      required VoidCallback onTap}) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: AnimatedContainer(
-          // Animates the underline
-          duration: const Duration(milliseconds: 300),
-          padding: const EdgeInsets.symmetric(
-              vertical: 12, horizontal: 8), // Adjusted padding
-          decoration: BoxDecoration(
-            border: Border(
-                bottom: BorderSide(
-                    color: isSelected ? Colors.deepOrange : Colors.transparent,
-                    width: 3)),
-          ),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: isSelected ? Colors.deepOrange : Colors.grey.shade600,
-            ),
-            maxLines: 3, // Allow text to wrap if long
-            overflow: TextOverflow.ellipsis,
-          ),
+  // Card-style pack size widget used in horizontal selector
+  Widget _buildPackSizeCard(String size, String price, bool selected) {
+    final showPrice = price.isNotEmpty && price != '0' && price != 'N/A';
+    return Container(
+      width: 110,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: selected ? Colors.deepOrange : Colors.grey.shade200,
+          width: selected ? 1.5 : 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-    );
-  }
-
-  // Builds the display for a single pack size with correct image fitting
-  Widget _buildPackSizeItem(String size, String price) {
-    // Don't display if price is missing or zero
-    if (price.isEmpty || price == '0') return const Expanded(child: SizedBox());
-
-    // Construct the image path dynamically based on size
-    String imageFileName = '${size.toLowerCase().replaceAll(' ', '')}.jpeg';
-    String imagePath = 'assets/pack_sizes/$imageFileName';
-
-    return Expanded(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Container to constrain the image size and center it
           Container(
-            height: 80, // Set height for the image area
-            width: 70, // Set width for the image area
-            alignment: Alignment.center,
-            child: Image.asset(
-              imagePath,
-              fit: BoxFit.contain, // Ensures the whole image fits
-              errorBuilder: (context, error, stackTrace) {
-                // Consistent fallback placeholder
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                      child: Icon(Iconsax.box_1,
-                          color: Colors.grey.shade400, size: 30)),
-                );
-              },
+            height: 40,
+            width: 40,
+            decoration: BoxDecoration(
+              color: selected
+                  ? Colors.deepOrange.withValues(alpha: 0.1)
+                  : const Color(0xFFF6F6F6),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Iconsax.cup,
+              size: 22,
+              color: Colors.deepOrange,
             ),
           ),
-          const SizedBox(height: 12),
-          Text(size,
-              style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 4),
-          Text('MRP ₹$price',
-              style: GoogleFonts.poppins(
-                  color: Colors.grey.shade600, fontSize: 12)),
+          const SizedBox(height: 10),
+          Text(
+            size,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade900,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(
-            '(Inclusive of all taxes)',
-            textAlign: TextAlign.center,
-            style:
-                GoogleFonts.poppins(fontSize: 9, color: Colors.grey.shade500),
+            showPrice ? 'MRP ₹$price' : 'MRP —',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: selected ? Colors.deepOrange : Colors.grey.shade600,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
           ),
         ],
       ),
