@@ -3,8 +3,18 @@ name: Flutter CI
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - '**/*.dart'
+      - 'pubspec.yaml'
+      - 'analysis_options.yaml'
+      - '.github/workflows/flutter-ci.yml'
   pull_request:
     branches: [ "main" ]
+    paths:
+      - '**/*.dart'
+      - 'pubspec.yaml'
+      - 'analysis_options.yaml'
+      - '.github/workflows/flutter-ci.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -12,11 +22,17 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Java (for Flutter tooling)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -36,11 +52,15 @@ jobs:
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: ${{ runner.os }}-pub-
 
-      - name: Install dependencies
-        run: flutter pub get
+      - name: Install dependencies (with retry)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          command: flutter pub get
 
       - name: Analyze
         run: flutter analyze --no-pub
 
       - name: Run unit/widget tests only
-        run: flutter test test
+        run: flutter test --no-pub test

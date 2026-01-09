@@ -19,6 +19,7 @@ import 'package:c_h_p/services/fcm_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:c_h_p/app/providers.dart';
+import 'package:c_h_p/pages/visualizer_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 // Removed custom spinning explore icon; using a generic icon instead
@@ -351,8 +352,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 _BottomItem(
                   icon: Iconsax.brush_2,
                   label: 'Visualizer',
-                  onTap: () =>
-                      _navigateToWithFade(const _VisualizerPlaceholder()),
+                  onTap: () => _navigateToWithFade(const VisualizerPage()),
                 ),
                 _BottomItem(
                   icon: Icons.explore,
@@ -618,17 +618,6 @@ class _BottomItem extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _VisualizerPlaceholder extends StatelessWidget {
-  const _VisualizerPlaceholder();
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Visualizer')),
-      body: const Center(child: Text('Visualizer coming soon')),
     );
   }
 }

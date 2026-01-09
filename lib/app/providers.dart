@@ -21,6 +21,7 @@ import 'package:c_h_p/data/repositories/cart_repository.dart';
 import 'package:c_h_p/features/cart/viewmodel/cart_view_model.dart';
 import 'package:c_h_p/data/repositories/painters_repository.dart';
 import 'package:c_h_p/features/painters/viewmodel/painters_view_model.dart';
+import 'package:c_h_p/features/visualizer/viewmodel/visualizer_view_model.dart';
 
 final recommendedProductsProvider = FutureProvider<List<Product>>((ref) async {
   return RecommendationService.fetchRecommendedProducts(limit: 10);
@@ -127,4 +128,10 @@ final paintersVMProvider =
     StateNotifierProvider<PaintersViewModel, PaintersState>((ref) {
   final repo = ref.read(paintersRepositoryProvider);
   return PaintersViewModel(repo);
+});
+
+// Visualizer MVVM
+final visualizerVMProvider =
+    StateNotifierProvider<VisualizerViewModel, VisualizerState>((ref) {
+  return VisualizerViewModel();
 });
