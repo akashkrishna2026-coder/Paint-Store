@@ -1,0 +1,27 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid",
+        "cart": {
+          "$productId": {
+            ".validate": "newData.hasChildren(['name','quantity','selectedSize','selectedPrice']) && newData.child('quantity').isNumber() && newData.child('quantity').val() >= 0"
+          }
+        }
+      }
+    },
+    "products": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
+    },
+    "admins": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}

@@ -35,11 +35,12 @@ A modern Flutter application for browsing paints, managing inventory, and shoppi
 - **Integration Tests** for critical flows
 
 ## Screenshots
-Add screenshots to a `screenshots/` folder and reference them here:
-- Home
-- Cart
-- Product Detail
-- Manager Dashboard
+Add PNG/JPG screenshots to `screenshots/` and they will render below. Replace placeholders with your images:
+
+![Home](screenshots/home.png)
+![Cart](screenshots/cart.png)
+![Product Detail](screenshots/product_detail.png)
+![Manager Dashboard](screenshots/manager_dashboard.png)
 
 ## Architecture: MVVM with Riverpod
 This codebase was migrated to MVVM to improve testability, separation of concerns, and scaling.
@@ -113,7 +114,37 @@ The app uses Firebase Auth and Realtime Database.
   - `products/{productId}`
 
 4) Security Rules
-- Set appropriate rules for dev, then harden for prod
+- Set appropriate rules for dev, then harden for prod. This repo includes a starter rules file at `database.rules.json`. Apply it from the Firebase Console or via the CLI:
+  - Firebase Console: Realtime Database → Rules → Import → select `database.rules.json`
+  - CLI (requires firebase-tools): `firebase deploy --only database`
+
+Example rules (see `database.rules.json` for the latest):
+
+```
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid",
+        "cart": {
+          "$productId": {
+            ".validate": "newData.hasChildren(['name','quantity'])"
+          }
+        }
+      }
+    },
+    "products": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
+    }
+  }
+}
+```
+
+Note: tighten these further for production according to your data model.
 
 ## Running the App
 ```
@@ -162,6 +193,16 @@ flutter test integration_test
   - Keep `pubspec.yaml` authoritative, then `flutter pub get` to regenerate lock
 - iOS pods:
   - `cd ios && pod install && cd ..`
+
+## CI/CD
+This repository can use GitHub Actions to validate pull requests and pushes to `main`.
+
+Included workflow: `.github/workflows/flutter-ci.yml`
+- Sets up Flutter (stable)
+- Caches Pub dependencies
+- Runs `flutter pub get`, `flutter analyze`, and `flutter test`
+
+Extend it to build and upload artifacts if needed.
 
 ## Roadmap
 - Offline caching and resilience
