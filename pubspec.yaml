@@ -46,6 +46,7 @@ dependencies:
   ar_flutter_plugin_updated: ^0.0.1
   vector_math: ^2.1.4
   permission_handler: ^11.3.1
+  flutter_riverpod: ^2.5.1
 
 
   path: any

@@ -1,21 +1,21 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'payment_page.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:c_h_p/app/providers.dart';
 
-class CheckoutFormPage extends StatefulWidget {
+class CheckoutFormPage extends ConsumerStatefulWidget {
   final int totalAmountPaise;
   const CheckoutFormPage({super.key, required this.totalAmountPaise});
 
   @override
-  State<CheckoutFormPage> createState() => _CheckoutFormPageState();
+  ConsumerState<CheckoutFormPage> createState() => _CheckoutFormPageState();
 }
 
-class _CheckoutFormPageState extends State<CheckoutFormPage> {
+class _CheckoutFormPageState extends ConsumerState<CheckoutFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -31,44 +31,22 @@ class _CheckoutFormPageState extends State<CheckoutFormPage> {
   @override
   void initState() {
     super.initState();
-    _prefillFromAuthAndProfile();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(checkoutVMProvider.notifier).prefillFromAuthAndProfile();
+      final s = ref.read(checkoutVMProvider);
+      if (mounted) {
+        setState(() {
+          if (s.name.isNotEmpty) _nameCtrl.text = s.name;
+          if (s.email.isNotEmpty) _emailCtrl.text = s.email;
+          if (s.phone.isNotEmpty) _phoneCtrl.text = s.phone;
+          if (s.address.isNotEmpty) _addressCtrl.text = s.address;
+          _loadingProfile = false;
+        });
+      }
+    });
   }
 
-  Future<void> _prefillFromAuthAndProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      if (user.displayName != null && user.displayName!.isNotEmpty) {
-        _nameCtrl.text = user.displayName!;
-      }
-      if (user.email != null && user.email!.isNotEmpty) {
-        _emailCtrl.text = user.email!;
-      }
-      if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty) {
-        _phoneCtrl.text = user.phoneNumber!;
-      }
-      try {
-        final profileSnap = await FirebaseDatabase.instance
-            .ref('users/${user.uid}/profile')
-            .get();
-        if (profileSnap.exists && profileSnap.value is Map) {
-          final data = Map<String, dynamic>.from(profileSnap.value as Map);
-          if ((_nameCtrl.text).isEmpty && data['fullName'] is String) {
-            _nameCtrl.text = data['fullName'];
-          }
-          if ((_phoneCtrl.text).isEmpty && data['phone'] is String) {
-            _phoneCtrl.text = data['phone'];
-          }
-          if ((_emailCtrl.text).isEmpty && data['email'] is String) {
-            _emailCtrl.text = data['email'];
-          }
-          if ((_addressCtrl.text).isEmpty && data['address'] is String) {
-            _addressCtrl.text = data['address'];
-          }
-        }
-      } catch (_) {}
-    }
-    if (mounted) setState(() => _loadingProfile = false);
-  }
+  // Removed direct prefill method; handled by CheckoutViewModel
 
   Future<bool> _handleLocationPermission() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -111,6 +89,8 @@ class _CheckoutFormPageState extends State<CheckoutFormPage> {
       );
       _lat = pos.latitude;
       _lng = pos.longitude;
+      // Store into VM state for later save
+      ref.read(checkoutVMProvider.notifier).setLatLng(_lat, _lng);
       final placemarks =
           await placemarkFromCoordinates(pos.latitude, pos.longitude);
       if (!mounted) return;
@@ -143,26 +123,18 @@ class _CheckoutFormPageState extends State<CheckoutFormPage> {
 
   Future<void> _proceedToPayment() async {
     if (!_formKey.currentState!.validate()) return;
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        await FirebaseDatabase.instance
-            .ref('users/${user.uid}/profile')
-            .update({
-          'fullName': _nameCtrl.text.trim(),
-          'phone': _phoneCtrl.text.trim(),
-          'email': _emailCtrl.text.trim(),
-          'address': _addressCtrl.text.trim(),
-          if (_lat != null && _lng != null)
-            'location': {'lat': _lat, 'lng': _lng},
-          'updatedAt': ServerValue.timestamp,
-        });
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Could not save profile: $e'),
-              backgroundColor: Colors.orange));
-        }
+    try {
+      await ref.read(checkoutVMProvider.notifier).saveProfile(
+            fullName: _nameCtrl.text.trim(),
+            phone: _phoneCtrl.text.trim(),
+            email: _emailCtrl.text.trim(),
+            address: _addressCtrl.text.trim(),
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Could not save profile: $e'),
+            backgroundColor: Colors.orange));
       }
     }
 

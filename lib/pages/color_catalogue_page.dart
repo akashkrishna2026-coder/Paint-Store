@@ -1,6 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
@@ -33,69 +33,19 @@ class ColorCataloguePage extends StatefulWidget {
 }
 
 class _ColorCataloguePageState extends State<ColorCataloguePage> {
-  final DatabaseReference _dbRef =
-      FirebaseDatabase.instance.ref('colorCategories');
-
   List<Map<String, String>> _allShades = [];
   List<String> _categories = [];
   String _selectedCategory = 'All';
 
-  late final Future<void> _loadCatalogueFuture;
-
   @override
   void initState() {
     super.initState();
-    _loadCatalogueFuture = _fetchAndParseData();
   }
 
-  Future<void> _fetchAndParseData() async {
-    final snapshot = await _dbRef.get();
-    if (mounted && snapshot.exists && snapshot.value is Map) {
-      final data = Map<String, dynamic>.from(snapshot.value as Map);
-      final List<Map<String, String>> allShades = [];
-      final Set<String> categories = {'All'};
-
-      data.forEach((categoryKey, shadesData) {
-        final categoryName =
-            categoryKey[0].toUpperCase() + categoryKey.substring(1);
-        categories.add(categoryName);
-
-        if (shadesData is Map) {
-          final familyShadesMap = Map<String, dynamic>.from(shadesData);
-          familyShadesMap.forEach((shadeCode, shadeDetails) {
-            if (shadeDetails is Map) {
-              final shade = Map<String, dynamic>.from(shadeDetails);
-              allShades.add({
-                'category': categoryName,
-                'code': shadeCode,
-                'name': shade['name']?.toString() ?? 'Unnamed',
-                'hex': shade['hex']?.toString() ?? '#FFFFFF',
-              });
-            }
-          });
-        }
-      });
-
-      setState(() {
-        _categories = categories.toList()
-          ..sort((a, b) {
-            if (a == 'All') return -1;
-            if (b == 'All') return 1;
-            return a.compareTo(b);
-          });
-        _allShades = allShades;
-      });
-    }
-  }
+  // Data is provided by ColorCatalogueViewModel via Riverpod.
 
   @override
   Widget build(BuildContext context) {
-    final filteredShades = _selectedCategory == 'All'
-        ? _allShades
-        : _allShades
-            .where((shade) => shade['category'] == _selectedCategory)
-            .toList();
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -106,28 +56,61 @@ class _ColorCataloguePageState extends State<ColorCataloguePage> {
         elevation: 1,
         iconTheme: IconThemeData(color: Colors.grey.shade800),
       ),
-      body: FutureBuilder(
-        future: _loadCatalogueFuture,
+      body: FutureBuilder<DataSnapshot>(
+        future: FirebaseDatabase.instance.ref('colorCategories').get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
                 child: CircularProgressIndicator(color: Colors.deepOrange));
           }
-          if (snapshot.hasError) {
-            return const Center(
-                child:
-                    Text("Could not load catalogue. Please try again later."));
-          }
-          if (_allShades.isEmpty) {
+          if (!snapshot.hasData || snapshot.data!.value == null) {
             return const Center(child: Text("Color catalogue is empty."));
           }
+
+          final data = Map<String, dynamic>.from(snapshot.data!.value as Map);
+
+          // Build categories and shades from DB
+          final Set<String> categoriesSet = {'All'};
+          final List<Map<String, String>> allShades = [];
+          data.forEach((categoryKey, shadesData) {
+            final ck = categoryKey.toString();
+            final categoryName =
+                ck.isNotEmpty ? ck[0].toUpperCase() + ck.substring(1) : ck;
+            categoriesSet.add(categoryName);
+            if (shadesData is Map) {
+              final familyShadesMap = Map<String, dynamic>.from(shadesData);
+              familyShadesMap.forEach((shadeCode, shadeDetails) {
+                if (shadeDetails is Map) {
+                  final shade = Map<String, dynamic>.from(shadeDetails);
+                  allShades.add({
+                    'category': categoryName,
+                    'code': shadeCode.toString(),
+                    'name': shade['name']?.toString() ?? 'Unnamed',
+                    'hex': shade['hex']?.toString() ?? '#FFFFFF',
+                  });
+                }
+              });
+            }
+          });
+
+          _categories = categoriesSet.toList()
+            ..sort((a, b) {
+              if (a == 'All') return -1;
+              if (b == 'All') return 1;
+              return a.compareTo(b);
+            });
+          _allShades = allShades;
+
+          final filtered = _selectedCategory == 'All'
+              ? _allShades
+              : _allShades
+                  .where((shade) => shade['category'] == _selectedCategory)
+                  .toList();
 
           return Column(
             children: [
               _buildFilterBar(),
-              Expanded(
-                child: _buildShadesGrid(filteredShades),
-              ),
+              Expanded(child: _buildShadesGrid(filtered)),
             ],
           );
         },
@@ -303,9 +286,10 @@ class ShadeDetailPage extends StatelessWidget {
                             .ref('shadeLinks/$code')
                             .get();
                         if (linkSnap.exists && linkSnap.value is Map) {
-                          final link = Map<String, dynamic>.from(
-                              linkSnap.value as Map);
-                          final String? productId = link['productId']?.toString();
+                          final link =
+                              Map<String, dynamic>.from(linkSnap.value as Map);
+                          final String? productId =
+                              link['productId']?.toString();
                           if (productId != null && productId.isNotEmpty) {
                             final prodSnap = await FirebaseDatabase.instance
                                 .ref('products/$productId')
@@ -319,7 +303,8 @@ class ShadeDetailPage extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => ProductDetailPage(product: product)),
+                                    builder: (_) =>
+                                        ProductDetailPage(product: product)),
                               );
                               return;
                             }
@@ -333,7 +318,8 @@ class ShadeDetailPage extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => ProductListForShadePage(shadeName: shadeName)),
+                          builder: (_) =>
+                              ProductListForShadePage(shadeName: shadeName)),
                     );
                   },
                   child: Text('Find Products in this Shade',

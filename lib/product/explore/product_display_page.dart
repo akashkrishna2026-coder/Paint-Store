@@ -4,6 +4,7 @@ import 'package:c_h_p/product/indigo_product_detail_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:lottie/lottie.dart';
@@ -63,8 +64,12 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
       var list = products.where((p) => p.stock > 0).toList();
 
       // If both category and subCategory are provided, also filter by subCategory here
-      if (widget.category != null && widget.subCategory != null && widget.subCategory!.isNotEmpty) {
-        list = list.where((p) => (p.subCategory ?? '') == widget.subCategory).toList();
+      if (widget.category != null &&
+          widget.subCategory != null &&
+          widget.subCategory!.isNotEmpty) {
+        list = list
+            .where((p) => (p.subCategory ?? '') == widget.subCategory)
+            .toList();
       }
 
       // Apply optional brand filter client-side
@@ -94,13 +99,28 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
 
   @override
   Widget build(BuildContext context) {
+    final brandLower = (widget.brand ?? '').toLowerCase();
+    final isIndigo = brandLower.startsWith('indigo');
+    final isAsian = brandLower.startsWith('asian paints');
+    final useLuxuryStyle = isIndigo || isAsian;
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor:
+          useLuxuryStyle ? const Color(0xFFF8F9FA) : Colors.grey.shade100,
       appBar: AppBar(
-        title: Text(widget.title, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+        title: Text(
+          widget.title,
+          style: useLuxuryStyle
+              ? GoogleFonts.playfairDisplay(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                )
+              : GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold, color: Colors.grey.shade800),
+        ),
         backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: IconThemeData(color: Colors.grey.shade800),
+        elevation: useLuxuryStyle ? 0 : 1,
+        iconTheme: IconThemeData(
+            color: useLuxuryStyle ? Colors.black87 : Colors.grey.shade800),
         actions: [
           IconButton(
             icon: const Icon(Iconsax.shopping_cart),
@@ -111,6 +131,12 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
             ),
           ),
         ],
+        bottom: useLuxuryStyle
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(1.0),
+                child: Container(color: Colors.grey.shade200, height: 1.0),
+              )
+            : null,
       ),
       body: FutureBuilder<List<Product>>(
         future: _productsFuture,
@@ -127,7 +153,7 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
 
           final inStockProducts = snapshot.data!;
 
-          return ListView.builder(
+          final listView = ListView.builder(
             padding: const EdgeInsets.all(16.0),
             cacheExtent: 1200,
             itemCount: inStockProducts.length,
@@ -139,12 +165,17 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
               );
             },
           );
+          if (isIndigo) {
+            return listView;
+          }
+          return listView;
         },
       ),
     );
   }
 
-  Widget _buildProductListItem(BuildContext context, Product product, {int? index}) {
+  Widget _buildProductListItem(BuildContext context, Product product,
+      {int? index}) {
     // Determine a sensible starting price: use the minimum numeric price among pack sizes
     String priceToShow = 'N/A';
     String smallestSizeLabel = '';
@@ -162,11 +193,133 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
         priceToShow = minPrice.toStringAsFixed(minPrice % 1 == 0 ? 0 : 2);
       }
       // Smallest size label using numericSize
-      final sortedBySize = [...product.packSizes]..sort((a, b) => a.numericSize.compareTo(b.numericSize));
+      final sortedBySize = [...product.packSizes]
+        ..sort((a, b) => a.numericSize.compareTo(b.numericSize));
       smallestSizeLabel = sortedBySize.first.size;
     }
 
-    return Card(
+    final brandLower = (product.brand ?? '').toLowerCase();
+    final isIndigo = brandLower.startsWith('indigo');
+    final isAsian = brandLower.startsWith('asian paints');
+    if (isIndigo || isAsian) {
+      return GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => isIndigo
+                  ? IndigoProductDetailPage(product: product)
+                  : ProductDetailPage(product: product),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 300),
+            ),
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          height: 140,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(18),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              )
+            ],
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius:
+                    const BorderRadius.horizontal(left: Radius.circular(20)),
+                child: Hero(
+                  tag: 'product_image_${product.key}',
+                  child: CachedNetworkImage(
+                    imageUrl: product.mainImageUrl,
+                    fit: BoxFit.cover,
+                    width: 130,
+                    height: double.infinity,
+                    placeholder: (context, url) =>
+                        Container(color: Colors.grey.shade100),
+                    errorWidget: (c, e, s) => Container(
+                      color: Colors.grey.shade100,
+                      child: Center(
+                        child: Icon(Iconsax.gallery_slash,
+                            size: 40, color: Colors.grey.shade400),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        product.name,
+                        style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          if (smallestSizeLabel.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: Colors.deepOrange.shade100),
+                              ),
+                              child: Text(smallestSizeLabel,
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: Colors.deepOrange.shade700)),
+                            ),
+                          if (smallestSizeLabel.isNotEmpty)
+                            const SizedBox(width: 8),
+                          Text(
+                            'MRP  ₹$priceToShow',
+                            style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                                color: Colors.deepOrange.shade700),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(right: 8.0),
+                child: Icon(Iconsax.arrow_right_3, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      )
+          .animate()
+          .fadeIn(duration: 600.ms, delay: ((index ?? 0) * 120).ms)
+          .moveX(begin: -24, duration: 600.ms, curve: Curves.easeOutCubic);
+    }
+
+    // Default (non-Indigo) card
+    final defaultCard = Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       shadowColor: Colors.black.withAlpha(25),
@@ -183,7 +336,8 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
                 }
                 return ProductDetailPage(product: product);
               },
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
                 return FadeTransition(opacity: animation, child: child);
               },
               transitionDuration: const Duration(milliseconds: 300),
@@ -213,8 +367,10 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
                           fadeInDuration: const Duration(milliseconds: 160),
                           memCacheWidth: 300,
                           memCacheHeight: 300,
-                          placeholder: (context, url) => Container(color: Colors.grey.shade200),
-                          errorWidget: (c, e, s) => const Center(child: Icon(Iconsax.gallery_slash)),
+                          placeholder: (context, url) =>
+                              Container(color: Colors.grey.shade200),
+                          errorWidget: (c, e, s) =>
+                              const Center(child: Icon(Iconsax.gallery_slash)),
                         ),
                       ),
                     ),
@@ -226,11 +382,16 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(product.name, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(product.name,
+                        style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 4),
                     Text(
                       product.description,
-                      style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 13),
+                      style: GoogleFonts.poppins(
+                          color: Colors.grey.shade600, fontSize: 13),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -240,18 +401,27 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
                       children: [
                         if (smallestSizeLabel.isNotEmpty)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.orange.shade50,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.deepOrange.shade100),
+                              border:
+                                  Border.all(color: Colors.deepOrange.shade100),
                             ),
-                            child: Text(smallestSizeLabel, style: GoogleFonts.poppins(fontSize: 12, color: Colors.deepOrange.shade700)),
+                            child: Text(smallestSizeLabel,
+                                style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: Colors.deepOrange.shade700)),
                           ),
-                        if (smallestSizeLabel.isNotEmpty) const SizedBox(width: 8),
+                        if (smallestSizeLabel.isNotEmpty)
+                          const SizedBox(width: 8),
                         Text(
                           'MRP  ₹$priceToShow',
-                          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.deepOrange.shade700),
+                          style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color: Colors.deepOrange.shade700),
                         ),
                       ],
                     ),
@@ -264,6 +434,15 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
         ),
       ),
     );
+
+    // Animate for Asian Paints to match Luxury-style entrance; otherwise return as-is
+    if ((product.brand ?? '').toLowerCase().startsWith('asian paints')) {
+      return defaultCard
+          .animate()
+          .fadeIn(duration: 600.ms, delay: ((index ?? 0) * 120).ms)
+          .moveX(begin: -24, duration: 600.ms, curve: Curves.easeOutCubic);
+    }
+    return defaultCard;
   }
 
   Widget _buildEmptyState() {
@@ -281,13 +460,17 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
             const SizedBox(height: 16),
             Text(
               "No Products Found",
-              style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
+              style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade800),
             ),
             const SizedBox(height: 8),
             Text(
               "It seems there are no products available in this category at the moment. Please check back later!",
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 14),
+              style: GoogleFonts.poppins(
+                  color: Colors.grey.shade600, fontSize: 14),
             ),
           ],
         ),
@@ -305,7 +488,8 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
         itemBuilder: (context, index) {
           return Card(
             margin: const EdgeInsets.only(bottom: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: Row(
@@ -323,9 +507,15 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(height: 20, width: double.infinity, color: Colors.white),
+                        Container(
+                            height: 20,
+                            width: double.infinity,
+                            color: Colors.white),
                         const SizedBox(height: 8),
-                        Container(height: 14, width: double.infinity, color: Colors.white),
+                        Container(
+                            height: 14,
+                            width: double.infinity,
+                            color: Colors.white),
                         const SizedBox(height: 4),
                         Container(height: 14, width: 150, color: Colors.white),
                         const SizedBox(height: 8),

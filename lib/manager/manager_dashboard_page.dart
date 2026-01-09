@@ -11,7 +11,6 @@ import '../pages/core/report_issue_page.dart';
 import 'link_shade_product_page.dart';
 import 'manage_latest_colors_page.dart';
 import '../pages/manage_color_catalogue_page.dart';
-import '../pages/manage_trends_page.dart';
 
 class ManagerDashboardPage extends StatelessWidget {
   const ManagerDashboardPage({super.key});
@@ -108,13 +107,6 @@ class ManagerDashboardPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const ManageLatestColorsPage())),
-            ),
-            _buildDashboardCard(
-              context: context,
-              icon: Iconsax.document_upload,
-              title: 'Manage Trends',
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const ManageTrendsPage())),
             ),
             _buildDashboardCard(
               context: context,

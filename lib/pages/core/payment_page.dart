@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // For user ID
-import 'package:firebase_database/firebase_database.dart'; // For saving order
 import 'package:iconsax/iconsax.dart'; // For icons
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:c_h_p/app/providers.dart';
 // Import your Cart Page if needed to clear cart after payment
 // import 'cart_page.dart';
 // Import a success page if you have one
 // import 'order_success_page.dart';
 
-class PaymentPage extends StatefulWidget {
+// Centralize Razorpay Key ID so it can be easily changed later
+const String kRazorpayKeyId = 'rzp_test_RVfRg0s4WjSnkL';
+
+class PaymentPage extends ConsumerStatefulWidget {
   final int totalAmount; // Amount in smallest currency unit (e.g., paise)
   final String? deliveryAddress;
   final String? fullName;
@@ -30,10 +33,10 @@ class PaymentPage extends StatefulWidget {
   });
 
   @override
-  State<PaymentPage> createState() => _PaymentPageState();
+  ConsumerState<PaymentPage> createState() => _PaymentPageState();
 }
 
-class _PaymentPageState extends State<PaymentPage> {
+class _PaymentPageState extends ConsumerState<PaymentPage> {
   late Razorpay _razorpay;
   bool _isProcessing = false; // To show loading state
   bool _paymentCompleted = false;
@@ -70,139 +73,45 @@ class _PaymentPageState extends State<PaymentPage> {
     debugPrint("✅ PAYMENT SUCCESSFUL: ${response.paymentId}");
     setState(() => _isProcessing = true); // Show processing indicator
     _paymentCompleted = true;
-    try { _razorpay.clear(); } catch (_) {}
+    try {
+      _razorpay.clear();
+    } catch (_) {}
 
-    // --- SAVE ORDER TO FIREBASE ---
-    // This is where you save the order details after successful payment
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final rootRef = FirebaseDatabase.instance.ref();
-      final userOrdersRef = rootRef.child('users/${user.uid}/orders');
-      final orderRef = userOrdersRef.push();
-      try {
-        // Read cart items before clearing to build notification content
-        final cartSnap = await rootRef.child('users/${user.uid}/cart').get();
-        final List<String> purchasedNames = [];
-        if (cartSnap.exists && cartSnap.value is Map) {
-          final cartMap = Map<String, dynamic>.from(cartSnap.value as Map);
-          for (final entry in cartMap.entries) {
-            final v = Map<String, dynamic>.from(entry.value);
-            final name = (v['name'] ?? '').toString();
-            if (name.isNotEmpty) purchasedNames.add(name);
-          }
-        }
-
-        final orderPayload = {
-          'userId': user.uid,
-          'orderId': orderRef.key, // Save the generated key as order ID
-          'paymentId': response.paymentId,
-          'signature': response.signature, // Important for server verification (if implemented)
-          'orderTotal': widget.totalAmount / 100.0, // Convert back to main currency unit (e.g., INR)
-          'status': 'Payment Successful - Pending Confirmation', // Initial status
-          'timestamp': ServerValue.timestamp, // Firebase server timestamp
-          'deliveryAddress': _deliveryAddress ?? '',
-          if (widget.lat != null && widget.lng != null) 'deliveryLocation': {'lat': widget.lat, 'lng': widget.lng},
-          'customer': {
-            'name': widget.fullName ?? '',
-            'email': widget.email ?? '',
-            'phone': widget.phone ?? '',
-          },
-          'items': purchasedNames,
-          // Manager fields
-          'manager': {
-            'status': 'pending',
-            'eta': null, // to be set by manager
-            'notes': null,
-          },
-        };
-
-        await orderRef.set(orderPayload);
-        debugPrint("✅ Order saved successfully to Firebase: ${orderRef.key}");
-
-        // Mirror to global orders so Manager dashboard (which reads /orders) can see it
-        try {
-          await rootRef.child('orders').child(orderRef.key!).set(orderPayload);
-        } catch (e) {
-          debugPrint('Warn: Failed to mirror to /orders: $e');
-        }
-
-        // --- SEND NOTIFICATIONS ---
-        await _sendPurchaseNotifications(user.uid, purchasedNames);
-
-        // --- CLEAR CART --- (Optional but recommended)
-        await rootRef.child('users/${user.uid}/cart').remove();
-        debugPrint("🛒 Cart cleared.");
-
-        // --- NAVIGATE TO SUCCESS PAGE ---
-        if (mounted) {
-          Navigator.pushReplacement( // Replace current page so user can't go back to payment
-              context,
-              MaterialPageRoute(builder: (_) => OrderSuccessPage(orderId: orderRef.key ?? 'N/A', paymentId: response.paymentId ?? 'N/A')) // Pass relevant IDs
-          );
-        }
-
-      } catch (e) {
-        debugPrint("❌ Error saving order: $e");
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Payment successful, but failed to save order: $e'),
-            backgroundColor: Colors.orange,
-          ));
-          setState(() => _isProcessing = false);
-        }
-      }
-    } else {
-      debugPrint("❌ User not logged in after payment?");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Payment successful, but user session issue occurred.'),
-          backgroundColor: Colors.orange,
-        ));
-        setState(() => _isProcessing = false);
-      }
+    try {
+      final orderId =
+          await ref.read(paymentVMProvider.notifier).handlePaymentSuccess(
+                paymentId: response.paymentId ?? 'N/A',
+                signature: response.signature,
+                totalAmountPaise: widget.totalAmount,
+                deliveryAddress: _deliveryAddress,
+                lat: widget.lat,
+                lng: widget.lng,
+                fullName: widget.fullName,
+                email: widget.email,
+                phone: widget.phone,
+              );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OrderSuccessPage(
+            orderId: orderId ?? 'N/A',
+            paymentId: response.paymentId ?? 'N/A',
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ Error handling payment success: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Payment successful, but failed to finalize order: $e'),
+        backgroundColor: Colors.orange,
+      ));
+      setState(() => _isProcessing = false);
     }
   }
 
-  Future<void> _sendPurchaseNotifications(String buyerUid, List<String> productNames) async {
-    final db = FirebaseDatabase.instance.ref();
-    
-    // Build detailed message with product info
-    final productInfo = productNames.isNotEmpty
-        ? productNames.join(', ')
-        : 'Items';
-    
-    final message = 'New Order: $productInfo';
-    final now = DateTime.now().millisecondsSinceEpoch;
-    
-    // Enhanced payload with location and order details
-    final payload = {
-      'message': message,
-      'timestamp': now,
-      'isRead': false,
-      'type': 'order', // Notification type
-      'orderDetails': {
-        'products': productNames,
-        'totalAmount': widget.totalAmount / 100.0,
-        'deliveryAddress': _deliveryAddress ?? 'Not specified',
-        if (widget.lat != null && widget.lng != null) 'location': {
-          'lat': widget.lat,
-          'lng': widget.lng,
-        },
-        'customer': {
-          'name': widget.fullName ?? 'N/A',
-          'email': widget.email ?? 'N/A',
-          'phone': widget.phone ?? 'N/A',
-        },
-      },
-    };
-
-    // Always notify the buyer (self) — allowed by rules
-    try { await db.child('users/$buyerUid/notifications').push().set(payload); } catch (e) { debugPrint('Notify self failed: $e'); }
-
-    // Broadcast to global role-based channels (managers/admins) — compatible with provided rules once added
-    try { await db.child('notifications/globalForManagers').push().set(payload); } catch (e) { debugPrint('Notify managers failed: $e'); }
-    try { await db.child('notifications/globalForAdmins').push().set(payload); } catch (e) { debugPrint('Notify admins failed: $e'); }
-  }
+  // Notifications are handled inside PaymentViewModel via OrdersRepository
 
   // --- Handle Payment Error ---
   void _handlePaymentError(PaymentFailureResponse response) {
@@ -233,9 +142,8 @@ class _PaymentPageState extends State<PaymentPage> {
     if (_isProcessing) return; // Prevent multiple clicks
     setState(() => _isProcessing = true); // Show loading indicator
 
-    // Fetch user details (optional but good for prefill)
-    final user = FirebaseAuth.instance.currentUser;
-    String? userEmail = widget.email ?? user?.email;
+    // Use provided fields for prefill (avoid direct auth usage in UI)
+    String? userEmail = widget.email;
     String? userContact = widget.phone;
 
     if (_deliveryAddress == null || _deliveryAddress!.trim().isEmpty) {
@@ -262,7 +170,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
     // --- Payment Options ---
     var options = {
-      'key': 'rzp_test_RVfRg0s4WjSnkL', // ⭐ Replace with your ACTUAL Key ID
+      'key': kRazorpayKeyId,
       'amount': widget.totalAmount, // Amount in paise (or smallest unit)
       'currency': 'INR',
       'name': 'Chandra Paints', // Your App/Company Name
@@ -298,10 +206,13 @@ class _PaymentPageState extends State<PaymentPage> {
         }
       });
     } catch (e) {
-      if (mounted) setState(() => _isProcessing = false); // Hide loading on error
+      if (mounted) {
+        setState(() => _isProcessing = false); // Hide loading on error
+      }
       debugPrint('Error opening Razorpay checkout: $e');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not start payment. Please try again. (Details: ${e.toString()})'),
+        content: Text(
+            'Could not start payment. Please try again. (Details: ${e.toString()})'),
         backgroundColor: Colors.red,
       ));
     }
@@ -312,7 +223,9 @@ class _PaymentPageState extends State<PaymentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Processing Payment", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.black87)),
+        title: Text("Processing Payment",
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, color: Colors.black87)),
         backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.black87),
@@ -323,7 +236,8 @@ class _PaymentPageState extends State<PaymentPage> {
           children: [
             const CircularProgressIndicator(color: Colors.deepOrange),
             const SizedBox(height: 16),
-            Text('Opening secure payment...', style: GoogleFonts.poppins(color: Colors.grey.shade700)),
+            Text('Opening secure payment...',
+                style: GoogleFonts.poppins(color: Colors.grey.shade700)),
             const SizedBox(height: 12),
             if (!_isProcessing && !_paymentCompleted)
               ElevatedButton(
@@ -337,19 +251,21 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 }
 
-
 // --- Simple Order Success Page (Placeholder) ---
 // Create a new file e.g., lib/pages/core/order_success_page.dart
 class OrderSuccessPage extends StatelessWidget {
   final String orderId;
   final String paymentId;
 
-  const OrderSuccessPage({super.key, required this.orderId, required this.paymentId});
+  const OrderSuccessPage(
+      {super.key, required this.orderId, required this.paymentId});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Order Successful"), automaticallyImplyLeading: false), // Prevent back button
+      appBar: AppBar(
+          title: Text("Order Successful"),
+          automaticallyImplyLeading: false), // Prevent back button
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -358,17 +274,26 @@ class OrderSuccessPage extends StatelessWidget {
             children: [
               Icon(Iconsax.tick_circle, color: Colors.green, size: 100),
               SizedBox(height: 20),
-              Text("Payment Successful!", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold)),
+              Text("Payment Successful!",
+                  style: GoogleFonts.poppins(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
               SizedBox(height: 10),
-              Text("Your order has been placed.", style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade700)),
+              Text("Your order has been placed.",
+                  style: GoogleFonts.poppins(
+                      fontSize: 16, color: Colors.grey.shade700)),
               SizedBox(height: 20),
-              Text("Order ID: $orderId", style: GoogleFonts.poppins(fontSize: 14)),
-              Text("Payment ID: $paymentId", style: GoogleFonts.poppins(fontSize: 14)),
+              Text("Order ID: $orderId",
+                  style: GoogleFonts.poppins(fontSize: 14)),
+              Text("Payment ID: $paymentId",
+                  style: GoogleFonts.poppins(fontSize: 14)),
               SizedBox(height: 40),
               ElevatedButton(
                 onPressed: () {
                   // Navigate back to the Home page or Explore page
-                  Navigator.popUntil(context, (route) => route.isFirst); // Go back to the very first route (usually home)
+                  Navigator.popUntil(
+                      context,
+                      (route) => route
+                          .isFirst); // Go back to the very first route (usually home)
                 },
                 child: Text("Continue Shopping"),
               )

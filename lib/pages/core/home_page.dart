@@ -3,32 +3,34 @@ import 'package:c_h_p/auth/login_page.dart';
 import 'package:c_h_p/model/product_model.dart';
 import 'package:c_h_p/pages/color_catalogue_page.dart';
 import 'package:c_h_p/pages/core/notifications_page.dart';
+import 'package:c_h_p/pages/core/cart_page.dart';
 import 'package:c_h_p/product/explore_product.dart';
-import 'package:c_h_p/product/latest_colors_page.dart';
 import 'package:c_h_p/product/product_detail_page.dart';
 import 'package:c_h_p/product/search_results_page.dart';
 import 'package:c_h_p/widgets/featured_carousel.dart';
 import 'package:c_h_p/widgets/home_drawer.dart';
 import 'package:c_h_p/widgets/home_sections.dart';
-import 'package:c_h_p/pages/paint_calculator_page.dart';
-import 'package:c_h_p/pages/view_painters_page.dart';
 import 'package:c_h_p/auth/personal_info_page.dart';
+import 'package:c_h_p/features/home/home_coordinator.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
+// Removed: firebase_database direct usage from widget
 import 'package:c_h_p/services/fcm_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:c_h_p/app/providers.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 // Removed custom spinning explore icon; using a generic icon instead
 
-class HomePage extends StatefulWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends ConsumerState<HomePage> {
+  final HomeCoordinator _coordinator = HomeCoordinator();
   final List<Map<String, String>> scrollItems = [
     {
       "title": "Painting Services",
@@ -52,12 +54,12 @@ class _HomePageState extends State<HomePage> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
   OverlayEntry? _overlayEntry;
-  List<Product> _allProducts = [];
   List<Product> _suggestions = [];
   Timer? _debounce;
   bool _isSearchLoading = false;
   bool _productsLoaded = false;
   bool _imagesPrecached = false;
+  StreamSubscription<String>? _roleSub;
 
   @override
   void initState() {
@@ -65,6 +67,25 @@ class _HomePageState extends State<HomePage> {
     _fetchUserRole();
     _searchFocusNode.addListener(_handleSearchFocus);
     _searchController.addListener(_onSearchChanged);
+    // Kick off products load for search suggestions (idempotent)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(homeVMProvider.notifier).loadAllProducts();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        ref.read(homeVMProvider.notifier).observeUnread(user.uid);
+        // Listen to role changes and update drawer reactively (except fixed Admin email)
+        _roleSub?.cancel();
+        if (user.email != 'akashkrishna389@gmail.com') {
+          _roleSub = ref
+              .read(userRepositoryProvider)
+              .userRoleStream(user.uid)
+              .listen((role) {
+            if (!mounted) return;
+            setState(() => _userRole = role);
+          });
+        }
+      }
+    });
   }
 
   @override
@@ -94,54 +115,45 @@ class _HomePageState extends State<HomePage> {
     _searchFocusNode.dispose();
     _debounce?.cancel();
     _hideOverlay();
+    _roleSub?.cancel();
     super.dispose();
   }
 
   Future<void> _fetchAllProductsForSearch() async {
+    // Legacy method retained for compatibility; now delegates to ViewModel
     try {
-      final snapshot = await FirebaseDatabase.instance.ref('products').get();
-      if (snapshot.exists && snapshot.value is Map) {
-        final productsMap = Map<String, dynamic>.from(snapshot.value as Map);
-        if (mounted) {
-          setState(() {
-            _allProducts = productsMap.entries.map((entry) {
-              return Product.fromMap(
-                  entry.key, Map<String, dynamic>.from(entry.value));
-            }).toList();
-            _productsLoaded = true;
-            if (_searchController.text.trim().isNotEmpty) {
-              final query = _searchController.text.toLowerCase();
-              _suggestions = _allProducts
-                  .where((p) => p.name.toLowerCase().contains(query))
-                  .toList();
-              _isSearchLoading = false;
-            }
-          });
-        }
+      await ref.read(homeVMProvider.notifier).loadAllProducts();
+      final vmProducts = ref.read(homeVMProvider).products;
+      if (mounted) {
+        setState(() {
+          _productsLoaded = true;
+          if (_searchController.text.trim().isNotEmpty) {
+            final query = _searchController.text.toLowerCase();
+            _suggestions = vmProducts
+                .where((p) => p.name.toLowerCase().contains(query))
+                .toList();
+            _isSearchLoading = false;
+          }
+        });
       }
     } catch (e) {
-      debugPrint("Error fetching all products for search: $e");
+      debugPrint("Error fetching all products for search via VM: $e");
     }
   }
 
   Future<void> _fetchUserRole() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      if (user.email == 'akashkrishna389@gmail.com') {
-        if (mounted) setState(() => _userRole = 'Admin');
-        return;
-      }
-      try {
-        final ref = FirebaseDatabase.instance.ref('users/${user.uid}');
-        final snapshot = await ref.get();
-        if (snapshot.exists && mounted) {
-          final data = Map<String, dynamic>.from(snapshot.value as Map);
-          final fetchedRole = data['userType'] ?? 'Customer';
-          setState(() => _userRole = fetchedRole);
-        }
-      } catch (e) {
-        debugPrint("Error fetching user role: $e");
-      }
+    if (user == null) return;
+    if (user.email == 'akashkrishna389@gmail.com') {
+      if (mounted) setState(() => _userRole = 'Admin');
+      return;
+    }
+    try {
+      final repo = ref.read(userRepositoryProvider);
+      final role = await repo.fetchUserRole(user.uid);
+      if (mounted) setState(() => _userRole = role);
+    } catch (e) {
+      debugPrint("Error fetching user role: $e");
     }
   }
 
@@ -181,23 +193,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _handleCarouselTap(Map<String, String> item) {
-    final title = item['title'];
-    Widget page;
-    if (title == 'Painting Services') {
-      page = const ViewPaintersPage();
-    } else if (title == 'Top Picks') {
-      page = const ViewPaintersPage();
-    } else if (title == 'Seasonal Offers') {
-      // Proxy: route to Color Catalogue as Color Visualization page placeholder
-      page = const ColorCataloguePage();
-    } else if (title == 'Latest Colors') {
-      page = const LatestColorsPage();
-    } else if (title == 'Paint Calculator') {
-      page = const PaintCalculatorPage();
-    } else {
-      page = const ExploreProductPage();
-    }
-    _navigateToWithFade(page);
+    _coordinator.onCarouselTap(context, item);
   }
 
   @override
@@ -284,58 +280,41 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       actions: [
-        StreamBuilder<DatabaseEvent>(
-          stream: currentUser != null
-              ? FirebaseDatabase.instance
-                  .ref('users/${currentUser.uid}/notifications')
-                  .limitToLast(50) // Limit to reduce data load
-                  .onValue
-              : null,
-          builder: (context, snapshot) {
-            int unreadCount = 0;
-            if (snapshot.hasData && snapshot.data?.snapshot.value != null) {
-              try {
-                final notifications = Map<String, dynamic>.from(
-                    snapshot.data!.snapshot.value as Map);
-                notifications.forEach((key, value) {
-                  if (value['isRead'] == false) unreadCount++;
-                });
-              } catch (e) {
-                // Handle error silently
-              }
-            }
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                IconButton(
-                  onPressed: () => _navigateToWithFade(
-                      const NotificationsPage(),
-                      checkAuth: true),
-                  icon: const Icon(Iconsax.notification),
-                ),
-                if (unreadCount > 0)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10)),
-                      constraints:
-                          const BoxConstraints(minWidth: 16, minHeight: 16),
-                      child: Text(
-                        '$unreadCount',
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 10),
-                        textAlign: TextAlign.center,
-                      ),
+        Builder(builder: (context) {
+          // Ensure we observe unread for current user
+          if (currentUser != null) {
+            ref.read(homeVMProvider.notifier).observeUnread(currentUser.uid);
+          }
+          final unreadCount = ref.watch(homeVMProvider).unreadCount;
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                onPressed: () => _navigateToWithFade(const NotificationsPage(),
+                    checkAuth: true),
+                icon: const Icon(Iconsax.notification),
+              ),
+              if (unreadCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10)),
+                    constraints:
+                        const BoxConstraints(minWidth: 16, minHeight: 16),
+                    child: Text(
+                      '$unreadCount',
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-              ],
-            );
-          },
-        ),
+                ),
+            ],
+          );
+        }),
       ],
     );
   }
@@ -370,20 +349,26 @@ class _HomePageState extends State<HomePage> {
                   onTap: () => _navigateToWithFade(const ColorCataloguePage()),
                 ),
                 _BottomItem(
-                  icon: Icons.explore,
-                  label: 'Explore',
-                  onTap: () => _navigateToWithFade(const ExploreProductPage()),
-                ),
-                _BottomItem(
                   icon: Iconsax.brush_2,
                   label: 'Visualizer',
                   onTap: () =>
                       _navigateToWithFade(const _VisualizerPlaceholder()),
                 ),
                 _BottomItem(
+                  icon: Icons.explore,
+                  label: 'Explore',
+                  onTap: () => _navigateToWithFade(const ExploreProductPage()),
+                ),
+                _BottomItem(
                   icon: Iconsax.user,
                   label: 'Profile',
                   onTap: () => _navigateToWithFade(const PersonalInfoPage()),
+                ),
+                _BottomItem(
+                  icon: Iconsax.shopping_cart,
+                  label: 'Cart',
+                  onTap: () =>
+                      _navigateToWithFade(const CartPage(), checkAuth: true),
                 ),
               ],
             ),
@@ -447,19 +432,39 @@ class _HomePageState extends State<HomePage> {
     }
     _showOverlay();
     _debounce = Timer(const Duration(milliseconds: 300), () {
-      if (_productsLoaded) {
-        final filtered = _allProducts
-            .where((p) => p.name
-                .toLowerCase()
-                .contains(_searchController.text.toLowerCase()))
-            .toList();
-        if (mounted) {
-          setState(() {
-            _suggestions = filtered;
-            _isSearchLoading = false;
-          });
+      // Ensure load is initiated
+      ref.read(homeVMProvider.notifier).loadAllProducts();
+      final products = ref.read(homeVMProvider).products;
+
+      final rawQuery = _searchController.text.trim();
+      final q = rawQuery.toLowerCase();
+
+      List<Product> filtered = [];
+      if (q.isNotEmpty && products.isNotEmpty) {
+        if (q.length == 1) {
+          // Prefix match for single-letter queries
+          final prefixMatches = products
+              .where((p) => p.name.toLowerCase().startsWith(q))
+              .toList();
+          // If there are many matches, show only first 4 until user types more
+          filtered = prefixMatches.length >= 10
+              ? prefixMatches.take(4).toList()
+              : prefixMatches;
+        } else {
+          // Broader contains match for longer queries
+          filtered =
+              products.where((p) => p.name.toLowerCase().contains(q)).toList();
         }
       }
+
+      if (mounted) {
+        setState(() {
+          _productsLoaded = products.isNotEmpty;
+          _suggestions = filtered;
+          _isSearchLoading = false; // stop spinner regardless
+        });
+      }
+
       _overlayEntry?.markNeedsBuild();
     });
   }

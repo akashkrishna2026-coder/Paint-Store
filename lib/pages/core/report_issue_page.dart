@@ -1,58 +1,51 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart'; // ⭐ UI: Added for animations
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
+import 'package:c_h_p/app/providers.dart';
 
 //==============================================================================
 // Page for Users to SUBMIT an Issue
 //==============================================================================
 
-class ReportIssuePage extends StatefulWidget {
+class ReportIssuePage extends ConsumerStatefulWidget {
   const ReportIssuePage({super.key});
 
   @override
-  State<ReportIssuePage> createState() => _ReportIssuePageState();
+  ConsumerState<ReportIssuePage> createState() => _ReportIssuePageState();
 }
 
-class _ReportIssuePageState extends State<ReportIssuePage> {
+class _ReportIssuePageState extends ConsumerState<ReportIssuePage> {
   final _formKey = GlobalKey<FormState>();
   final _issueController = TextEditingController();
   final User? _currentUser = FirebaseAuth.instance.currentUser;
   bool _isLoading = false;
 
   Future<void> _submitReport() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      try {
-        final reportsRef = FirebaseDatabase.instance.ref('reports');
-        await reportsRef.push().set({
-          'userId': _currentUser!.uid,
-          'name': _currentUser.displayName ?? 'Anonymous',
-          'email': _currentUser.email ?? 'No Email',
-          'issue': _issueController.text.trim(),
-          'timestamp': ServerValue.timestamp,
-          'status': 'Pending',
-        });
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Thank you! Your report has been submitted.'),
-              backgroundColor: Colors.green),
-        );
-        Navigator.pop(context);
-      } catch (e) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Failed to submit report: $e'),
-              backgroundColor: Colors.red),
-        );
-      }
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      await ref
+          .read(reportVMProvider.notifier)
+          .submitIssue(_issueController.text.trim());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Thank you! Your report has been submitted.'),
+            backgroundColor: Colors.green),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Failed to submit report: $e'),
+            backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -126,36 +119,21 @@ class _ReportIssuePageState extends State<ReportIssuePage> {
 // Page for Admins to VIEW all Issues
 //==============================================================================
 
-class ViewReportsPage extends StatefulWidget {
+class ViewReportsPage extends ConsumerStatefulWidget {
   const ViewReportsPage({super.key});
 
   @override
-  State<ViewReportsPage> createState() => _ViewReportsPageState();
+  ConsumerState<ViewReportsPage> createState() => _ViewReportsPageState();
 }
 
-class _ViewReportsPageState extends State<ViewReportsPage> {
-  final DatabaseReference _reportsRef =
-      FirebaseDatabase.instance.ref('reports');
-
+class _ViewReportsPageState extends ConsumerState<ViewReportsPage> {
   // ⭐ FIX: Restored the specific issue text to the notification
   Future<void> _resolveReport(
       String reportKey, String userId, String issueText) async {
     try {
-      await _reportsRef.child(reportKey).update({'status': 'Resolved'});
-
-      final userNotificationsRef =
-          FirebaseDatabase.instance.ref('users/$userId/notifications');
-
-      String shortIssue = issueText.length > 30
-          ? '${issueText.substring(0, 30)}...'
-          : issueText;
-      await userNotificationsRef.push().set({
-        'message':
-            'Your report about "$shortIssue" has been received and is now being processed.',
-        'timestamp': ServerValue.timestamp,
-        'isRead': false,
-      });
-
+      await ref
+          .read(reportVMProvider.notifier)
+          .resolve(reportKey: reportKey, userId: userId, issueText: issueText);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -181,13 +159,14 @@ class _ViewReportsPageState extends State<ViewReportsPage> {
         backgroundColor: Colors.red.shade700,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: StreamBuilder(
-        stream: _reportsRef.orderByChild('timestamp').limitToLast(200).onValue,
-        builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
+      body: StreamBuilder<List<MapEntry<String, Map<String, dynamic>>>>(
+        stream: ref.read(reportVMProvider.notifier).reportsStream(),
+        builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
+          final reportsList = snapshot.data ?? const [];
+          if (reportsList.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -202,21 +181,16 @@ class _ViewReportsPageState extends State<ViewReportsPage> {
             );
           }
 
-          final reportsMap =
-              Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
-          final reportsList = reportsMap.entries.toList().reversed.toList();
-
           return ListView.builder(
             padding: const EdgeInsets.all(8.0),
             cacheExtent: 800,
             itemCount: reportsList.length,
             itemBuilder: (context, index) {
               final reportKey = reportsList[index].key;
-              final reportData =
-                  Map<String, dynamic>.from(reportsList[index].value);
-              final timestamp = reportData['timestamp'] != null
-                  ? DateTime.fromMillisecondsSinceEpoch(reportData['timestamp'])
-                  : null;
+              final reportData = reportsList[index].value;
+              final ts = reportData['timestamp'];
+              final timestamp =
+                  ts is int ? DateTime.fromMillisecondsSinceEpoch(ts) : null;
               final formattedDate = timestamp != null
                   ? DateFormat('MMM d, yyyy - h:mm a').format(timestamp)
                   : 'N/A';

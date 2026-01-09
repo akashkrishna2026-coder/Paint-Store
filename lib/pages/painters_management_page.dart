@@ -18,7 +18,8 @@ class PaintersManagementPage extends StatefulWidget {
 }
 
 class _PaintersManagementPageState extends State<PaintersManagementPage> {
-  final DatabaseReference _paintersRef = FirebaseDatabase.instance.ref('painters');
+  final DatabaseReference _paintersRef =
+      FirebaseDatabase.instance.ref('painters');
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -49,7 +50,8 @@ class _PaintersManagementPageState extends State<PaintersManagementPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
@@ -60,8 +62,8 @@ class _PaintersManagementPageState extends State<PaintersManagementPage> {
               final pickedFile = await ImagePicker().pickImage(
                 source: ImageSource.gallery,
                 imageQuality: 85, // Compress the image slightly
-                maxWidth: 800,   // Resize the image to a max width
-                maxHeight: 800,  // Resize the image to a max height
+                maxWidth: 800, // Resize the image to a max width
+                maxHeight: 800, // Resize the image to a max height
               );
               if (pickedFile != null) {
                 setModalState(() {
@@ -77,7 +79,11 @@ class _PaintersManagementPageState extends State<PaintersManagementPage> {
             }
 
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, top: 20, left: 20, right: 20),
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                  top: 20,
+                  left: 20,
+                  right: 20),
               child: Form(
                 key: _formKey,
                 child: SingleChildScrollView(
@@ -85,9 +91,10 @@ class _PaintersManagementPageState extends State<PaintersManagementPage> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(painter == null ? "Add New Painter" : "Edit Painter", style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold)),
+                      Text(painter == null ? "Add New Painter" : "Edit Painter",
+                          style: GoogleFonts.poppins(
+                              fontSize: 22, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 20),
-
                       Center(
                         child: GestureDetector(
                           onTap: pickImage,
@@ -96,42 +103,77 @@ class _PaintersManagementPageState extends State<PaintersManagementPage> {
                             backgroundColor: Colors.grey.shade200,
                             backgroundImage: _imageFile != null
                                 ? FileImage(_imageFile!)
-                                : (_networkImageUrl != null && _networkImageUrl!.isNotEmpty ? CachedNetworkImageProvider(_networkImageUrl!) : null) as ImageProvider?,
-                            child: (_imageFile == null && (_networkImageUrl == null || _networkImageUrl!.isEmpty))
-                                ? const Icon(Iconsax.camera, size: 40, color: Colors.grey)
+                                : (_networkImageUrl != null &&
+                                        _networkImageUrl!.isNotEmpty
+                                    ? CachedNetworkImageProvider(
+                                        _networkImageUrl!)
+                                    : null) as ImageProvider?,
+                            child: (_imageFile == null &&
+                                    (_networkImageUrl == null ||
+                                        _networkImageUrl!.isEmpty))
+                                ? const Icon(Iconsax.camera,
+                                    size: 40, color: Colors.grey)
                                 : null,
                           ),
                         ),
                       ),
                       const SizedBox(height: 20),
-
-                      TextFormField(controller: _nameController, decoration: const InputDecoration(labelText: 'Painter Name', border: OutlineInputBorder()), validator: (v) => v!.isEmpty ? 'Name is required' : null),
+                      TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                              labelText: 'Painter Name',
+                              border: OutlineInputBorder()),
+                          validator: (v) =>
+                              v!.isEmpty ? 'Name is required' : null),
                       const SizedBox(height: 12),
-                      TextFormField(controller: _locationController, decoration: const InputDecoration(labelText: 'Location', border: OutlineInputBorder()), validator: (v) => v!.isEmpty ? 'Location is required' : null),
+                      TextFormField(
+                          controller: _locationController,
+                          decoration: const InputDecoration(
+                              labelText: 'Location',
+                              border: OutlineInputBorder()),
+                          validator: (v) =>
+                              v!.isEmpty ? 'Location is required' : null),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _phoneController,
-                        decoration: const InputDecoration(labelText: 'Phone Number (Optional)', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                            labelText: 'Phone Number (Optional)',
+                            border: OutlineInputBorder()),
                         keyboardType: TextInputType.phone,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                           controller: _fareController,
-                          decoration: const InputDecoration(labelText: 'Fare for One Day', prefixText: '₹', border: OutlineInputBorder()),
+                          decoration: const InputDecoration(
+                              labelText: 'Fare for One Day',
+                              prefixText: '₹',
+                              border: OutlineInputBorder()),
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          validator: (v) => v!.isEmpty ? 'Fare is required' : null
-                      ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                          validator: (v) =>
+                              v!.isEmpty ? 'Fare is required' : null),
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: isLoading ? null : handleSave,
-                          icon: isLoading ? const SizedBox.shrink() : const Icon(Iconsax.save_21),
+                          icon: isLoading
+                              ? const SizedBox.shrink()
+                              : const Icon(Iconsax.save_21),
                           label: isLoading
-                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                              : Text(painter == null ? 'Save Painter' : 'Update Details'),
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 3))
+                              : Text(painter == null
+                                  ? 'Save Painter'
+                                  : 'Update Details'),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -150,8 +192,10 @@ class _PaintersManagementPageState extends State<PaintersManagementPage> {
     try {
       String? imageUrl = _networkImageUrl;
       if (_imageFile != null) {
-        String fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(_imageFile!.path)}';
-        Reference storageRef = FirebaseStorage.instance.ref().child('painter_images/$fileName');
+        String fileName =
+            '${DateTime.now().millisecondsSinceEpoch}_${path.basename(_imageFile!.path)}';
+        Reference storageRef =
+            FirebaseStorage.instance.ref().child('painter_images/$fileName');
         TaskSnapshot snapshot = await storageRef.putFile(_imageFile!);
         imageUrl = await snapshot.ref.getDownloadURL();
       }
@@ -175,12 +219,15 @@ class _PaintersManagementPageState extends State<PaintersManagementPage> {
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), backgroundColor: Colors.green));
       }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Operation failed: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Operation failed: $e'),
+            backgroundColor: Colors.red));
       }
     }
   }
@@ -193,19 +240,23 @@ class _PaintersManagementPageState extends State<PaintersManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Manage Painters", style: GoogleFonts.poppins(color: Colors.white)),
+        title: Text("Manage Painters",
+            style: GoogleFonts.poppins(color: Colors.white)),
         backgroundColor: Colors.pink.shade600,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: StreamBuilder(
         stream: _paintersRef.onValue,
         builder: (context, AsyncSnapshot<DatabaseEvent> snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
           if (snapshot.data?.snapshot.value == null) {
             return const Center(child: Text("No painters added yet."));
           }
 
-          final paintersMap = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
+          final paintersMap =
+              Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
 
           final List<Painter> paintersList = [];
           paintersMap.forEach((key, value) {
@@ -227,25 +278,32 @@ class _PaintersManagementPageState extends State<PaintersManagementPage> {
                   child: const Icon(Iconsax.trash, color: Colors.white),
                 ),
                 child: Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   child: ListTile(
                     // ⭐ OPTIMIZATION: Use CachedNetworkImage for smooth scrolling
                     leading: CircleAvatar(
                       backgroundColor: Colors.grey.shade200,
-                      child: painter.imageUrl != null && painter.imageUrl!.isNotEmpty
+                      child: painter.imageUrl != null &&
+                              painter.imageUrl!.isNotEmpty
                           ? ClipOval(
-                        child: CachedNetworkImage(
-                          imageUrl: painter.imageUrl!,
-                          fit: BoxFit.cover,
-                          width: 60,
-                          height: 60,
-                          placeholder: (context, url) => const CircularProgressIndicator(),
-                          errorWidget: (context, url, error) => const Icon(Iconsax.user, color: Colors.grey),
-                        ),
-                      )
+                              child: CachedNetworkImage(
+                                imageUrl: painter.imageUrl!,
+                                fit: BoxFit.cover,
+                                width: 60,
+                                height: 60,
+                                placeholder: (context, url) =>
+                                    const CircularProgressIndicator(),
+                                errorWidget: (context, url, error) =>
+                                    const Icon(Iconsax.user,
+                                        color: Colors.grey),
+                              ),
+                            )
                           : const Icon(Iconsax.user, color: Colors.grey),
                     ),
-                    title: Text(painter.name, style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                    title: Text(painter.name,
+                        style:
+                            GoogleFonts.poppins(fontWeight: FontWeight.bold)),
                     subtitle: Text(painter.location),
                     trailing: IconButton(
                       icon: const Icon(Iconsax.edit, color: Colors.blue),

@@ -1,45 +1,44 @@
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../model/product_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:c_h_p/app/providers.dart';
 
-class StockMonitoringPage extends StatefulWidget {
+class StockMonitoringPage extends ConsumerStatefulWidget {
   const StockMonitoringPage({super.key});
 
   @override
-  State<StockMonitoringPage> createState() => _StockMonitoringPageState();
+  ConsumerState<StockMonitoringPage> createState() =>
+      _StockMonitoringPageState();
 }
 
-class _StockMonitoringPageState extends State<StockMonitoringPage> {
-  final DatabaseReference _productsRef =
-      FirebaseDatabase.instance.ref('products');
+class _StockMonitoringPageState extends ConsumerState<StockMonitoringPage> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
   // Updates the stock for a given product in Firebase.
   Future<void> _updateStock(String productKey, int newStock) async {
-    final stockToUpdate = newStock < 0 ? 0 : newStock; // Prevent negative stock
     try {
-      await _productsRef.child(productKey).update({'stock': stockToUpdate});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Stock updated successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
+      await ref
+          .read(stockVMProvider.notifier)
+          .updateStock(productKey, newStock);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Stock updated successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Failed to update stock: $e'),
-              backgroundColor: Colors.red),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Failed to update stock: $e'),
+            backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -96,6 +95,7 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
 
   @override
   Widget build(BuildContext context) {
+    final stockState = ref.watch(stockVMProvider);
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
@@ -127,52 +127,42 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
           ),
         ),
       ),
-      body: StreamBuilder<DatabaseEvent>(
-        stream: _productsRef.onValue,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-                child: CircularProgressIndicator(color: Colors.deepOrange));
+      body: () {
+        if (stockState.loading && stockState.products.isEmpty) {
+          return const Center(
+              child: CircularProgressIndicator(color: Colors.deepOrange));
+        }
+        if (stockState.products.isEmpty) {
+          return const Center(child: Text('No products found.'));
+        }
+
+        final Map<String, Map<String, List<Product>>> categorizedStock = {};
+        for (final product in stockState.products) {
+          if (_searchQuery.isEmpty ||
+              product.name.toLowerCase().contains(_searchQuery)) {
+            final String categoryKey = product.category ?? 'Uncategorized';
+            final String brandKey = product.brand ?? 'Unbranded';
+            categorizedStock.putIfAbsent(categoryKey, () => {});
+            categorizedStock[categoryKey]!.putIfAbsent(brandKey, () => []);
+            categorizedStock[categoryKey]![brandKey]!.add(product);
           }
-          if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
-            return const Center(child: Text("No products found."));
-          }
+        }
 
-          final Map<String, Map<String, List<Product>>> categorizedStock = {};
-          final productsMap =
-              Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
+        if (categorizedStock.isEmpty && _searchQuery.isNotEmpty) {
+          return const Center(child: Text('No products match your search.'));
+        }
 
-          productsMap.forEach((key, value) {
-            final product =
-                Product.fromMap(key, Map<String, dynamic>.from(value));
-            if (_searchQuery.isEmpty ||
-                product.name.toLowerCase().contains(_searchQuery)) {
-              // ⭐ FIX: Provide a default value if category or brand is null
-              final String categoryKey = product.category ?? 'Uncategorized';
-              final String brandKey = product.brand ?? 'Unbranded';
-
-              categorizedStock.putIfAbsent(categoryKey, () => {});
-              categorizedStock[categoryKey]!.putIfAbsent(brandKey, () => []);
-              categorizedStock[categoryKey]![brandKey]!.add(product);
-            }
-          });
-
-          if (categorizedStock.isEmpty && _searchQuery.isNotEmpty) {
-            return const Center(child: Text("No products match your search."));
-          }
-
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            cacheExtent: 800,
-            children: categorizedStock.entries.map((categoryEntry) {
-              return _buildCategoryExpansionTile(
-                categoryName: categoryEntry.key,
-                brandsData: categoryEntry.value,
-              );
-            }).toList(),
-          );
-        },
-      ),
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          cacheExtent: 800,
+          children: categorizedStock.entries.map((categoryEntry) {
+            return _buildCategoryExpansionTile(
+              categoryName: categoryEntry.key,
+              brandsData: categoryEntry.value,
+            );
+          }).toList(),
+        );
+      }(),
     );
   }
 

@@ -1,19 +1,20 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:c_h_p/app/providers.dart';
 
-class NotificationsPage extends StatefulWidget {
+class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
 
   @override
-  State<NotificationsPage> createState() => _NotificationsPageState();
+  ConsumerState<NotificationsPage> createState() => _NotificationsPageState();
 }
 
-class _NotificationsPageState extends State<NotificationsPage> {
+class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   bool _animatedOnce = false;
   @override
   void initState() {
@@ -21,27 +22,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _markNotificationsAsRead(FirebaseDatabase.instance
-            .ref('users/${currentUser.uid}/notifications'));
+        // Start VM and mark all as read
+        ref.read(notificationsVMProvider.notifier).start(currentUser.uid);
+        ref.read(notificationsVMProvider.notifier).markAllRead(currentUser.uid);
         if (mounted) setState(() => _animatedOnce = true);
       });
     }
   }
 
-  void _markNotificationsAsRead(DatabaseReference ref) {
-    ref.orderByChild('isRead').equalTo(false).get().then((snapshot) {
-      if (snapshot.exists) {
-        final Map<String, dynamic> updates = {};
-        for (var child in snapshot.children) {
-          updates['${child.key}/isRead'] = true;
-        }
-        ref.update(updates);
-      }
-    });
-  }
-
   // ⭐ NEW: Function to clear all notifications with confirmation
-  Future<void> _clearAllNotifications(DatabaseReference ref) async {
+  Future<void> _clearAllNotifications(String uid) async {
     final shouldClear = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -63,7 +53,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
 
     if (shouldClear == true) {
-      await ref.remove();
+      await ref.read(notificationsVMProvider.notifier).clearAll(uid);
     }
   }
 
@@ -78,12 +68,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
       );
     }
 
-    final db = FirebaseDatabase.instance.ref();
-    final DatabaseReference notificationsRef =
-        db.child('users/${currentUser.uid}/notifications');
-    final DatabaseReference userRef = db.child('users/${currentUser.uid}');
-    final DatabaseReference dismissedRef =
-        db.child('users/${currentUser.uid}/dismissedNotifications');
+    final uid = currentUser.uid;
+    final state = ref.watch(notificationsVMProvider);
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
@@ -99,144 +85,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
           IconButton(
             icon: const Icon(Iconsax.trash),
             tooltip: 'Clear All Notifications',
-            onPressed: () => _clearAllNotifications(notificationsRef),
+            onPressed: () => _clearAllNotifications(uid),
           ),
         ],
       ),
-      body: FutureBuilder<DataSnapshot>(
-        future: userRef.get(),
-        builder: (context, userSnap) {
-          final userType = (userSnap.data?.value is Map)
-              ? (Map<String, dynamic>.from(
-                          userSnap.data!.value as Map)['userType'] ??
-                      '')
-                  .toString()
-              : '';
-
-          final bool isManager = userType == 'Manager';
-          final bool isAdmin = userType == 'Admin';
-
-          final globalManagersRef = db.child('notifications/globalForManagers');
-          final globalAdminsRef = db.child('notifications/globalForAdmins');
-
-          return StreamBuilder<DatabaseEvent>(
-            stream: dismissedRef.onValue,
-            builder: (context, dismissedSnap) {
-              final Set<String> dismissed = {};
-              if (dismissedSnap.hasData &&
-                  dismissedSnap.data!.snapshot.value is Map) {
-                final m = Map<String, dynamic>.from(
-                    dismissedSnap.data!.snapshot.value as Map);
-                dismissed.addAll(m.keys.map((k) => k.toString()));
-              }
-
-              return StreamBuilder<DatabaseEvent>(
-                stream: notificationsRef
-                    .orderByChild('timestamp')
-                    .limitToLast(100)
-                    .onValue,
-                builder: (context, personalSnap) {
-                  final List<Map<String, dynamic>> personal = [];
-                  if (personalSnap.hasData &&
-                      personalSnap.data!.snapshot.value is Map) {
-                    final m = Map<String, dynamic>.from(
-                        personalSnap.data!.snapshot.value as Map);
-                    personal.addAll(
-                      m.entries.map((e) => {
-                            'key': e.key,
-                            'data': Map<String, dynamic>.from(e.value),
-                            'ref': notificationsRef,
-                            'src': 'p',
-                          }),
-                    );
-                  }
-
-                  if (!isManager && !isAdmin) {
-                    // Filter out any personal notifications that match dismissed signature (unlikely but safe)
-                    final filtered = personal.where((it) {
-                      final data = it['data'] as Map<String, dynamic>;
-                      final sig =
-                          '${(data['type'] ?? '').toString()}|${(data['timestamp'] ?? 0).toString()}|${(data['message'] ?? '').toString()}';
-                      return !dismissed.contains(sig);
-                    }).toList()
-                      ..sort((a, b) {
-                        final at =
-                            ((a['data'] as Map<String, dynamic>)['timestamp'] ??
-                                0) as int;
-                        final bt =
-                            ((b['data'] as Map<String, dynamic>)['timestamp'] ??
-                                0) as int;
-                        return bt.compareTo(at);
-                      });
-                    return _buildList(context, filtered, dismissedRef);
-                  }
-
-                  // For Manager/Admin, also include global channel
-                  final globalRef =
-                      isAdmin ? globalAdminsRef : globalManagersRef;
-                  return StreamBuilder<DatabaseEvent>(
-                    stream: globalRef
-                        .orderByChild('timestamp')
-                        .limitToLast(100)
-                        .onValue,
-                    builder: (context, globalSnap) {
-                      final List<Map<String, dynamic>> global = [];
-                      if (globalSnap.hasData &&
-                          globalSnap.data!.snapshot.value is Map) {
-                        final m = Map<String, dynamic>.from(
-                            globalSnap.data!.snapshot.value as Map);
-                        global.addAll(
-                          m.entries.map((e) => {
-                                'key': e.key,
-                                'data': Map<String, dynamic>.from(e.value),
-                                'ref': globalRef,
-                                'src': 'g',
-                              }),
-                        );
-                      }
-
-                      // Merge, de-duplicate by signature, filter dismissed, and sort by timestamp desc
-                      final List<Map<String, dynamic>> merged = [];
-                      final Set<String> seen = {};
-                      void addAllDedup(List<Map<String, dynamic>> src) {
-                        for (final it in src) {
-                          final data = it['data'] as Map<String, dynamic>;
-                          final ts = (data['timestamp'] ?? 0).toString();
-                          final msg = (data['message'] ?? '').toString();
-                          final type = (data['type'] ?? '').toString();
-                          final sig = '$type|$ts|$msg';
-                          if (seen.add(sig) && !dismissed.contains(sig)) {
-                            merged.add(it);
-                          }
-                        }
-                      }
-
-                      addAllDedup(personal);
-                      addAllDedup(global);
-                      merged.sort((a, b) {
-                        final at =
-                            ((a['data'] as Map<String, dynamic>)['timestamp'] ??
-                                0) as int;
-                        final bt =
-                            ((b['data'] as Map<String, dynamic>)['timestamp'] ??
-                                0) as int;
-                        return bt.compareTo(at);
-                      });
-                      return _buildList(context, merged, dismissedRef);
-                    },
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
+      body: _buildList(context, state.entries, uid),
     );
   }
 
-  Widget _buildList(BuildContext context, List<Map<String, dynamic>> items,
-      DatabaseReference dismissedRef) {
-    if (items.isEmpty) {
+  Widget _buildList(BuildContext context, List entries, String uid) {
+    if (entries.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -252,13 +110,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
       cacheExtent: 800,
-      itemCount: items.length,
+      itemCount: entries.length,
       itemBuilder: (context, index) {
-        final notificationKey = items[index]['key'] as String;
-        final notificationData =
-            Map<String, dynamic>.from(items[index]['data'] as Map);
-        final itemRef = items[index]['ref'] as DatabaseReference;
-        final src = (items[index]['src'] as String? ?? 'p');
+        final it = entries[index];
+        final notificationKey = it.key as String;
+        final Map<String, dynamic> notificationData =
+            it.data as Map<String, dynamic>;
+        final String src = it.src as String? ?? 'p';
         final tsValue = notificationData['timestamp'];
         final timestamp = tsValue is int
             ? DateTime.fromMillisecondsSinceEpoch(tsValue)
@@ -272,13 +130,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
           direction: DismissDirection.endToStart,
           confirmDismiss: (direction) async {
             try {
-              final data = notificationData;
-              final sig =
-                  '${(data['type'] ?? '').toString()}|${(data['timestamp'] ?? 0).toString()}|${(data['message'] ?? '').toString()}';
               if (src == 'g') {
-                await dismissedRef.child(sig).set(true);
+                final data = notificationData;
+                final sig =
+                    '${(data['type'] ?? '').toString()}|${(data['timestamp'] ?? 0).toString()}|${(data['message'] ?? '').toString()}';
+                await ref
+                    .read(notificationsVMProvider.notifier)
+                    .dismissGlobal(uid, sig);
               } else {
-                await itemRef.child(notificationKey).remove();
+                await ref
+                    .read(notificationsVMProvider.notifier)
+                    .deletePersonal(uid, notificationKey);
               }
               return true;
             } catch (_) {

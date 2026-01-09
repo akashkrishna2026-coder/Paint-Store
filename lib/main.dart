@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/fcm_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'services/fcm_background.dart';
 import 'services/notification_service.dart';
 import 'pages/core/notifications_page.dart';
@@ -36,7 +37,7 @@ Future<void> main() async {
     RecommendationService.apiBaseUrl = api;
   }
 
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatefulWidget {

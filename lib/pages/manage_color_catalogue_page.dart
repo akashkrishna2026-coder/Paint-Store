@@ -10,10 +10,12 @@ class ManageColorCataloguePage extends StatefulWidget {
   const ManageColorCataloguePage({super.key});
 
   @override
-  State<ManageColorCataloguePage> createState() => _ManageColorCataloguePageState();
+  State<ManageColorCataloguePage> createState() =>
+      _ManageColorCataloguePageState();
 }
 
-class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> with SingleTickerProviderStateMixin {
+class _ManageColorCataloguePageState extends State<ManageColorCataloguePage>
+    with SingleTickerProviderStateMixin {
   final _shadeFormKey = GlobalKey<FormState>();
   final _categoryFormKey = GlobalKey<FormState>();
   final _renameCategoryFormKey = GlobalKey<FormState>();
@@ -25,7 +27,8 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
 
   // ⭐ FIX: Corrected database reference to the proper path.
   // This was pointing to 'colorCategories/colorCategories' before.
-  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref('colorCategories');
+  final DatabaseReference _dbRef =
+      FirebaseDatabase.instance.ref('colorCategories');
 
   late TabController _tabController;
   String? _selectedCategoryKey;
@@ -44,16 +47,21 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
     _dbRef.onValue.listen((event) {
       if (!mounted) return;
       if (event.snapshot.exists && event.snapshot.value is Map) {
-        final categoriesData = Map<String, dynamic>.from(event.snapshot.value as Map);
+        final categoriesData =
+            Map<String, dynamic>.from(event.snapshot.value as Map);
         final List<String> loadedCategories = categoriesData.keys.toList();
 
         setState(() {
           _categories = loadedCategories;
-          if (_selectedCategoryKey == null || !_categories.contains(_selectedCategoryKey)) {
-            _selectedCategoryKey = _categories.isNotEmpty ? _categories.first : null;
+          if (_selectedCategoryKey == null ||
+              !_categories.contains(_selectedCategoryKey)) {
+            _selectedCategoryKey =
+                _categories.isNotEmpty ? _categories.first : null;
           }
-          if (_categoryToRenameKey == null || !_categories.contains(_categoryToRenameKey)) {
-            _categoryToRenameKey = _categories.isNotEmpty ? _categories.first : null;
+          if (_categoryToRenameKey == null ||
+              !_categories.contains(_categoryToRenameKey)) {
+            _categoryToRenameKey =
+                _categories.isNotEmpty ? _categories.first : null;
           }
         });
       } else {
@@ -104,22 +112,25 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
     if (_shadeFormKey.currentState!.validate()) {
       if (_selectedCategoryKey == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a color category.'), backgroundColor: Colors.red),
+          const SnackBar(
+              content: Text('Please select a color category.'),
+              backgroundColor: Colors.red),
         );
         return;
       }
       try {
         final shadeCode = _shadeCodeController.text.trim();
-        final newShadeRef = _dbRef.child('$_selectedCategoryKey/$shadeCode');
 
-        await newShadeRef.set({
+        await _dbRef.child('${_selectedCategoryKey!}/$shadeCode').set({
           'name': _shadeNameController.text.trim(),
           'hex': _colorToHex(_previewColor),
         });
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('New shade added successfully!'), backgroundColor: Colors.green),
+          const SnackBar(
+              content: Text('New shade added successfully!'),
+              backgroundColor: Colors.green),
         );
         _shadeFormKey.currentState!.reset();
         _shadeNameController.clear();
@@ -130,7 +141,9 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add shade: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to add shade: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -139,12 +152,17 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
   Future<void> _addCategory() async {
     if (_categoryFormKey.currentState!.validate()) {
       try {
-        final newCategoryName = _categoryNameController.text.trim().toLowerCase().replaceAll(' ', '');
-        await _dbRef.child(newCategoryName).set({'_placeholder': true});
+        final newCategoryName = _categoryNameController.text
+            .trim()
+            .toLowerCase()
+            .replaceAll(' ', '');
+        await _dbRef.child(newCategoryName).set({});
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('New category added successfully!'), backgroundColor: Colors.green),
+          const SnackBar(
+              content: Text('New category added successfully!'),
+              backgroundColor: Colors.green),
         );
         _categoryFormKey.currentState!.reset();
         _categoryNameController.clear();
@@ -152,7 +170,9 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add category: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to add category: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -162,37 +182,45 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
     if (_renameCategoryFormKey.currentState!.validate()) {
       if (_categoryToRenameKey == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a category to rename.'), backgroundColor: Colors.red),
+          const SnackBar(
+              content: Text('Please select a category to rename.'),
+              backgroundColor: Colors.red),
         );
         return;
       }
       try {
         final oldCategoryKey = _categoryToRenameKey!;
-        final newCategoryKey = _newCategoryNameController.text.trim().toLowerCase().replaceAll(' ', '');
+        final newCategoryKey = _newCategoryNameController.text
+            .trim()
+            .toLowerCase()
+            .replaceAll(' ', '');
 
-        final snapshot = await _dbRef.child(oldCategoryKey).get();
-        if (!snapshot.exists) {
-          throw Exception("Category to rename does not exist.");
+        final oldSnap = await _dbRef.child(oldCategoryKey).get();
+        if (oldSnap.exists && oldSnap.value is Map) {
+          final map = Map<String, dynamic>.from(oldSnap.value as Map);
+          await _dbRef.child(newCategoryKey).set(map);
+        } else {
+          await _dbRef.child(newCategoryKey).set({});
         }
-        final shadesData = snapshot.value;
-
-        await _dbRef.child(newCategoryKey).set(shadesData);
         await _dbRef.child(oldCategoryKey).remove();
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Category renamed successfully!'), backgroundColor: Colors.green),
+          const SnackBar(
+              content: Text('Category renamed successfully!'),
+              backgroundColor: Colors.green),
         );
         _renameCategoryFormKey.currentState!.reset();
         _newCategoryNameController.clear();
         setState(() {
           _categoryToRenameKey = newCategoryKey;
         });
-
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to rename category: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to rename category: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -212,7 +240,8 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Manage Catalogue", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        title: Text("Manage Catalogue",
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -225,9 +254,14 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
       body: TabBarView(
         controller: _tabController,
         children: [
-          SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildAddShadeForm()),
-          SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildAddCategoryForm()),
-          SingleChildScrollView(padding: const EdgeInsets.all(16.0), child: _buildRenameCategoryForm()),
+          SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0), child: _buildAddShadeForm()),
+          SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: _buildAddCategoryForm()),
+          SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: _buildRenameCategoryForm()),
         ],
       ),
     );
@@ -242,30 +276,41 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
           if (_categories.isNotEmpty)
             DropdownButtonFormField<String>(
               value: _selectedCategoryKey,
-              decoration: const InputDecoration(labelText: 'Color Category', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Color Category', border: OutlineInputBorder()),
               items: _categories.map<DropdownMenuItem<String>>((categoryName) {
                 return DropdownMenuItem<String>(
                   value: categoryName,
-                  child: Text(categoryName[0].toUpperCase() + categoryName.substring(1)),
+                  child: Text(categoryName[0].toUpperCase() +
+                      categoryName.substring(1)),
                 );
               }).toList(),
               onChanged: (value) {
-                setState(() { _selectedCategoryKey = value; });
+                setState(() {
+                  _selectedCategoryKey = value;
+                });
               },
             )
           else
-            const Center(child: Text("No categories found. Please add a category first.")),
+            const Center(
+                child:
+                    Text("No categories found. Please add a category first.")),
           const SizedBox(height: 16),
           TextFormField(
             controller: _shadeNameController,
-            decoration: const InputDecoration(labelText: 'Shade Name', border: OutlineInputBorder()),
-            validator: (value) => value == null || value.isEmpty ? 'Please enter a name' : null,
+            decoration: const InputDecoration(
+                labelText: 'Shade Name', border: OutlineInputBorder()),
+            validator: (value) =>
+                value == null || value.isEmpty ? 'Please enter a name' : null,
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _shadeCodeController,
-            decoration: const InputDecoration(labelText: 'Shade Code (e.g., 8029, K261)', border: OutlineInputBorder()),
-            validator: (value) => value == null || value.isEmpty ? 'Please enter a code' : null,
+            decoration: const InputDecoration(
+                labelText: 'Shade Code (e.g., 8029, K261)',
+                border: OutlineInputBorder()),
+            validator: (value) =>
+                value == null || value.isEmpty ? 'Please enter a code' : null,
           ),
           const SizedBox(height: 16),
           const Text("Selected Color"),
@@ -282,12 +327,13 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
               ),
               child: Center(
                   child: Text(
-                    'Tap to pick a color',
-                    style: GoogleFonts.poppins(
-                      color: _previewColor.computeLuminance() > 0.5 ? Colors.black : Colors.white,
-                    ),
-                  )
-              ),
+                'Tap to pick a color',
+                style: GoogleFonts.poppins(
+                  color: _previewColor.computeLuminance() > 0.5
+                      ? Colors.black
+                      : Colors.white,
+                ),
+              )),
             ),
           ),
           const SizedBox(height: 20),
@@ -314,12 +360,18 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Create a New Color Category", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text("Create a New Color Category",
+              style: GoogleFonts.poppins(
+                  fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           TextFormField(
             controller: _categoryNameController,
-            decoration: const InputDecoration(labelText: 'Category Name (e.g., Reds)', border: OutlineInputBorder()),
-            validator: (value) => value == null || value.isEmpty ? 'Please enter a category name' : null,
+            decoration: const InputDecoration(
+                labelText: 'Category Name (e.g., Reds)',
+                border: OutlineInputBorder()),
+            validator: (value) => value == null || value.isEmpty
+                ? 'Please enter a category name'
+                : null,
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -345,16 +397,21 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Rename an Existing Category", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text("Rename an Existing Category",
+              style: GoogleFonts.poppins(
+                  fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           if (_categories.isNotEmpty)
             DropdownButtonFormField<String>(
               value: _categoryToRenameKey,
-              decoration: const InputDecoration(labelText: 'Select Category to Rename', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                  labelText: 'Select Category to Rename',
+                  border: OutlineInputBorder()),
               items: _categories.map<DropdownMenuItem<String>>((categoryName) {
                 return DropdownMenuItem<String>(
                   value: categoryName,
-                  child: Text(categoryName[0].toUpperCase() + categoryName.substring(1)),
+                  child: Text(categoryName[0].toUpperCase() +
+                      categoryName.substring(1)),
                 );
               }).toList(),
               onChanged: (value) {
@@ -369,8 +426,12 @@ class _ManageColorCataloguePageState extends State<ManageColorCataloguePage> wit
           const SizedBox(height: 16),
           TextFormField(
             controller: _newCategoryNameController,
-            decoration: const InputDecoration(labelText: 'Enter New Category Name', border: OutlineInputBorder()),
-            validator: (value) => value == null || value.isEmpty ? 'Please enter a new name' : null,
+            decoration: const InputDecoration(
+                labelText: 'Enter New Category Name',
+                border: OutlineInputBorder()),
+            validator: (value) => value == null || value.isEmpty
+                ? 'Please enter a new name'
+                : null,
           ),
           const SizedBox(height: 24),
           SizedBox(

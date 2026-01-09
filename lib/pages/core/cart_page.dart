@@ -9,6 +9,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:c_h_p/app/providers.dart';
 
 // Ensure these import paths match your project structure
 import '../../model/product_model.dart';
@@ -43,14 +45,14 @@ class CartItemDetails {
   List<PackSize> get availableSizes => productDetails?.packSizes ?? [];
 }
 
-class CartPage extends StatefulWidget {
+class CartPage extends ConsumerStatefulWidget {
   const CartPage({super.key});
 
   @override
-  State<CartPage> createState() => _CartPageState();
+  ConsumerState<CartPage> createState() => _CartPageState();
 }
 
-class _CartPageState extends State<CartPage> {
+class _CartPageState extends ConsumerState<CartPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
@@ -90,20 +92,17 @@ class _CartPageState extends State<CartPage> {
 
   // --- Cart Modification Functions ---
   void _updateQuantity(String productKey, int newQuantity) {
-    final user = _auth.currentUser;
-    if (user == null) return;
-    final itemRef = _dbRef.child('users/${user.uid}/cart/$productKey');
-
-    _justQuantityChange = true; // used to suppress list item animations briefly
+    if (_auth.currentUser == null) return;
+    _justQuantityChange = true;
     if (newQuantity > 0) {
-      itemRef.update({'quantity': newQuantity});
+      ref
+          .read(cartVMProvider.notifier)
+          .updateQuantity(productKey: productKey, quantity: newQuantity);
     } else {
-      itemRef.remove();
+      ref.read(cartVMProvider.notifier).removeItem(productKey);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("Item removed"), duration: Duration(seconds: 1)),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("Item removed"), duration: Duration(seconds: 1)));
       }
     }
   }
@@ -127,15 +126,12 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _updateSelectedSize(String productKey, PackSize newPackSize) {
-    final user = _auth.currentUser;
-    if (user == null) return;
-    final itemRef = _dbRef.child('users/${user.uid}/cart/$productKey');
-
-    itemRef.update({
-      'selectedSize': newPackSize.size,
-      'selectedPrice': newPackSize.price,
-      'quantity': 1 // Reset quantity
-    });
+    if (_auth.currentUser == null) return;
+    ref.read(cartVMProvider.notifier).changeSize(
+          productKey: productKey,
+          size: newPackSize.size,
+          price: newPackSize.price,
+        );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -146,10 +142,7 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _clearCart() {
-    final user = _auth.currentUser;
-    if (user == null) return;
-    final cartRef = _dbRef.child('users/${user.uid}/cart');
-
+    if (_auth.currentUser == null) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -166,7 +159,7 @@ class _CartPageState extends State<CartPage> {
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             child: const Text("Clear All"),
             onPressed: () {
-              cartRef.remove();
+              ref.read(cartVMProvider.notifier).clearCart();
               Navigator.of(ctx).pop();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -192,87 +185,77 @@ class _CartPageState extends State<CartPage> {
       // AppBar is built dynamically
       body: currentUser == null
           ? _buildLoggedOutState()
-          : StreamBuilder<DatabaseEvent>(
-              stream: _dbRef.child('users/${currentUser.uid}/cart').onValue,
-              builder: (context, snapshot) {
-                // --- Loading/Error/Empty States ---
-                if (snapshot.connectionState == ConnectionState.waiting &&
-                    !snapshot.hasData) {
-                  return Scaffold(
-                      appBar: _buildAppBar(false),
-                      body: _buildCartLoadingShimmer(3));
-                }
-                if (snapshot.hasError) {
-                  return Scaffold(
-                      appBar: _buildAppBar(false),
-                      body: Center(
-                          child: Text("Error: ${snapshot.error}",
-                              style: TextStyle(color: Colors.red))));
-                }
-                final cartData = snapshot.data?.snapshot.value;
-                final bool isCartEmpty =
-                    cartData == null || (cartData as Map).isEmpty;
-                if (isCartEmpty) {
-                  return Scaffold(
-                      appBar: _buildAppBar(false), body: _buildEmptyCart());
-                }
-                // --- Cart Has Data ---
-                final cartMap = Map<String, dynamic>.from(cartData);
-                final productKeys = cartMap.keys.toList();
+          : Builder(builder: (context) {
+              final cartState = ref.watch(cartVMProvider);
+              if (cartState.loading && cartState.items.isEmpty) {
+                return Scaffold(
+                    appBar: _buildAppBar(false),
+                    body: _buildCartLoadingShimmer(3));
+              }
+              if (cartState.error != null) {
+                return Scaffold(
+                    appBar: _buildAppBar(false),
+                    body: Center(
+                        child: Text("Error: ${cartState.error}",
+                            style: TextStyle(color: Colors.red))));
+              }
+              final cartMap = cartState.items;
+              final bool isCartEmpty = cartMap.isEmpty;
+              if (isCartEmpty) {
+                return Scaffold(
+                    appBar: _buildAppBar(false), body: _buildEmptyCart());
+              }
+              final productKeys = cartMap.keys.toList();
+              return FutureBuilder<Map<String, Product?>>(
+                future: _getProductDetailsCached(productKeys),
+                builder: (context, productDetailsSnapshot) {
+                  Widget bodyContent;
+                  List<CartItemDetails> cartItemsWithDetails = [];
 
-                return FutureBuilder<Map<String, Product?>>(
-                  future: _getProductDetailsCached(productKeys),
-                  builder: (context, productDetailsSnapshot) {
-                    Widget bodyContent;
-                    List<CartItemDetails> cartItemsWithDetails = [];
+                  if (productDetailsSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    bodyContent = _buildCartLoadingShimmer(cartMap.length);
+                  } else if (productDetailsSnapshot.hasError) {
+                    bodyContent = Center(
+                        child: Text("Error: ${productDetailsSnapshot.error}",
+                            style: TextStyle(color: Colors.red)));
+                  } else {
+                    final productDetailsMap = productDetailsSnapshot.data ?? {};
+                    cartItemsWithDetails = cartMap.entries
+                        .map((entry) {
+                          return CartItemDetails(
+                            productKey: entry.key,
+                            cartData: Map<String, dynamic>.from(entry.value),
+                            productDetails: productDetailsMap[entry.key],
+                          );
+                        })
+                        .where((item) => item.productDetails != null)
+                        .toList();
 
-                    if (productDetailsSnapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      bodyContent = _buildCartLoadingShimmer(cartMap.length);
-                    } else if (productDetailsSnapshot.hasError) {
+                    if (cartItemsWithDetails.isEmpty && cartMap.isNotEmpty) {
                       bodyContent = Center(
-                          child: Text("Error: ${productDetailsSnapshot.error}",
-                              style: TextStyle(color: Colors.red)));
+                          child: Text("Items may have been removed.",
+                              style: TextStyle(color: Colors.orange.shade800)));
+                    } else if (cartItemsWithDetails.isEmpty) {
+                      bodyContent = _buildEmptyCart();
                     } else {
-                      final productDetailsMap =
-                          productDetailsSnapshot.data ?? {};
-                      cartItemsWithDetails = cartMap.entries
-                          .map((entry) {
-                            return CartItemDetails(
-                              productKey: entry.key,
-                              cartData: Map<String, dynamic>.from(entry.value),
-                              productDetails: productDetailsMap[entry.key],
-                            );
-                          })
-                          .where((item) => item.productDetails != null)
-                          .toList();
-
-                      if (cartItemsWithDetails.isEmpty && cartMap.isNotEmpty) {
-                        bodyContent = Center(
-                            child: Text("Items may have been removed.",
-                                style:
-                                    TextStyle(color: Colors.orange.shade800)));
-                      } else if (cartItemsWithDetails.isEmpty) {
-                        bodyContent = _buildEmptyCart();
-                      } else {
-                        bodyContent = _buildCartContent(cartItemsWithDetails);
-                      }
+                      bodyContent = _buildCartContent(cartItemsWithDetails);
                     }
+                  }
 
-                    return Scaffold(
-                      backgroundColor: Colors.grey.shade100,
-                      appBar: _buildAppBar(
-                        cartItemsWithDetails.isNotEmpty && !isCartEmpty,
-                        itemCount: cartItemsWithDetails.isNotEmpty
-                            ? cartItemsWithDetails.length
-                            : null,
-                      ),
-                      body: bodyContent,
-                    );
-                  },
-                );
-              },
-            ),
+                  return Scaffold(
+                    backgroundColor: Colors.grey.shade100,
+                    appBar: _buildAppBar(
+                      cartItemsWithDetails.isNotEmpty && !isCartEmpty,
+                      itemCount: cartItemsWithDetails.isNotEmpty
+                          ? cartItemsWithDetails.length
+                          : null,
+                    ),
+                    body: bodyContent,
+                  );
+                },
+              );
+            }),
     );
   }
 
@@ -511,7 +494,7 @@ class _CartPageState extends State<CartPage> {
       key: Key(item.productKey + currentSelectedPackSize.size),
       direction: DismissDirection.endToStart,
       onDismissed: (direction) {
-        _updateQuantity(item.productKey, 0);
+        ref.read(cartVMProvider.notifier).removeItem(item.productKey);
       },
       background: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20),

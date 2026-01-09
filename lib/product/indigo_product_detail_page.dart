@@ -13,7 +13,8 @@ class IndigoProductDetailPage extends StatefulWidget {
   final Product product;
 
   @override
-  State<IndigoProductDetailPage> createState() => _IndigoProductDetailPageState();
+  State<IndigoProductDetailPage> createState() =>
+      _IndigoProductDetailPageState();
 }
 
 class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
@@ -41,20 +42,29 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 4))
+        ],
       ),
       padding: const EdgeInsets.all(16),
       child: AspectRatio(
         aspectRatio: 1,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: CachedNetworkImage(
-            imageUrl: widget.product.mainImageUrl,
-            fit: BoxFit.contain,
-            memCacheWidth: 1200,
-            memCacheHeight: 1200,
-            placeholder: (c, u) => Container(color: Colors.grey.shade200),
-            errorWidget: (c, e, s) => const Center(child: Icon(Iconsax.gallery_slash)),
+          child: Hero(
+            tag: 'product_image_${widget.product.key}',
+            child: CachedNetworkImage(
+              imageUrl: widget.product.mainImageUrl,
+              fit: BoxFit.contain,
+              memCacheWidth: 1200,
+              memCacheHeight: 1200,
+              placeholder: (c, u) => Container(color: Colors.grey.shade200),
+              errorWidget: (c, e, s) =>
+                  const Center(child: Icon(Iconsax.gallery_slash)),
+            ),
           ),
         ),
       ),
@@ -65,27 +75,119 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.product.name, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 22)),
+        Text(
+          widget.product.name,
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
         const SizedBox(height: 8),
-        Text(widget.product.description, style: GoogleFonts.poppins(color: Colors.grey.shade700)),
+        Text(widget.product.description,
+            style: GoogleFonts.poppins(color: Colors.grey.shade700)),
         const SizedBox(height: 16),
 
+        // Benefits
+        const Divider(height: 1, thickness: 0.5),
+        Text(
+          'Benefits',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.grey.shade800,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              )
+            ],
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          child: widget.product.benefits.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text('No benefits listed',
+                      style: GoogleFonts.poppins(color: Colors.grey.shade600)),
+                )
+              : Column(
+                  children: [
+                    ...widget.product.benefits.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final b = entry.value;
+                      return Column(
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.check_circle,
+                                  color: Colors.green, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  b.text,
+                                  style: GoogleFonts.poppins(
+                                      color: Colors.black87),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (i < widget.product.benefits.length - 1)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 10.0),
+                              child: Divider(
+                                  height: 1, color: Colors.grey.shade200),
+                            ),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+        ),
+        const SizedBox(height: 20),
+
         // Pack Sizes
-        Text('Available Pack Sizes', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
+        const Divider(height: 1, thickness: 0.5),
+        Text(
+          'Pack Sizes Available',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.grey.shade800,
+          ),
+        ),
+        const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: widget.product.packSizes.map((ps) {
             final selected = _selectedPack?.size == ps.size;
             return ChoiceChip(
-              label: Text(ps.size, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              label: Text(
+                ps.size,
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              ),
               selected: selected,
               onSelected: (_) => setState(() => _selectedPack = ps),
               selectedColor: Colors.deepOrange.shade50,
-              shape: StadiumBorder(side: BorderSide(color: selected ? Colors.deepOrange : const Color(0xFFE0E0E0))),
+              shape: StadiumBorder(
+                  side: BorderSide(
+                      color: selected
+                          ? Colors.deepOrange
+                          : const Color(0xFFE0E0E0))),
               backgroundColor: Colors.white,
-              labelStyle: GoogleFonts.poppins(color: selected ? Colors.deepOrange : Colors.black87),
+              labelStyle: GoogleFonts.poppins(
+                  color: selected ? Colors.deepOrange : Colors.black87),
             );
           }).toList(),
         ),
@@ -93,17 +195,31 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
         if (_selectedPack != null && _selectedPack!.price.isNotEmpty)
           Row(
             children: [
-              Text('MRP  ', style: GoogleFonts.poppins(color: Colors.grey.shade700)),
-              Text('₹${_selectedPack!.price}', style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18, color: Colors.deepOrange.shade700)),
+              Text('MRP  ',
+                  style: GoogleFonts.poppins(color: Colors.grey.shade700)),
+              Text('₹${_selectedPack!.price}',
+                  style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                      color: Colors.deepOrange.shade700)),
             ],
           ),
         const SizedBox(height: 20),
 
         // Advantages
-        Text('Advantages', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        const Divider(height: 1, thickness: 0.5),
+        Text(
+          'Advantages',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.grey.shade800,
+          ),
+        ),
         const SizedBox(height: 8),
         if (widget.product.benefits.isEmpty)
-          Text('No advantages listed', style: GoogleFonts.poppins(color: Colors.grey.shade600))
+          Text('No advantages listed',
+              style: GoogleFonts.poppins(color: Colors.grey.shade600))
         else
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,9 +229,12 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                          const Icon(Icons.check_circle,
+                              color: Colors.green, size: 18),
                           const SizedBox(width: 8),
-                          Expanded(child: Text(b.text, style: GoogleFonts.poppins())),
+                          Expanded(
+                              child:
+                                  Text(b.text, style: GoogleFonts.poppins())),
                         ],
                       ),
                     ))
@@ -124,12 +243,14 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
         const SizedBox(height: 20),
 
         // Warranty
-        if (widget.product.warrantyYears != null && widget.product.warrantyYears! > 0)
+        if (widget.product.warrantyYears != null &&
+            widget.product.warrantyYears! > 0)
           Row(
             children: [
               const Icon(Iconsax.shield_tick, color: Colors.deepOrange),
               const SizedBox(width: 8),
-              Text('Warranty: ${widget.product.warrantyYears} years', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              Text('Warranty: ${widget.product.warrantyYears} years',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
             ],
           ),
         const SizedBox(height: 16),
@@ -142,7 +263,8 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
               foregroundColor: Colors.deepOrange,
               side: BorderSide(color: Colors.deepOrange.shade200),
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
           ),
       ],
@@ -154,25 +276,35 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
     final User? user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please log in to add items.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please log in to add items.')));
       return;
     }
     final pack = _selectedPack;
-    if (pack == null || pack.price.isEmpty || pack.price == '0' || pack.price == 'N/A') {
+    if (pack == null ||
+        pack.price.isEmpty ||
+        pack.price == '0' ||
+        pack.price == 'N/A') {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a valid pack size.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a valid pack size.')));
       return;
     }
-    final cartRef = FirebaseDatabase.instance.ref('users/${user.uid}/cart/${widget.product.key}');
+    final cartRef = FirebaseDatabase.instance
+        .ref('users/${user.uid}/cart/${widget.product.key}');
     try {
       final snapshot = await cartRef.get();
       if (snapshot.exists && snapshot.value is Map) {
         final cartItemData = Map<String, dynamic>.from(snapshot.value as Map);
         if (cartItemData['selectedSize'] == pack.size) {
           int currentQuantity = cartItemData['quantity'] ?? 0;
-          await cartRef.update({'quantity': currentQuantity + 1, 'selectedPrice': pack.price});
+          await cartRef.update(
+              {'quantity': currentQuantity + 1, 'selectedPrice': pack.price});
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${widget.product.name} (${pack.size}) quantity updated!"), backgroundColor: Colors.orange.shade700));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(
+                  "${widget.product.name} (${pack.size}) quantity updated!"),
+              backgroundColor: Colors.orange.shade700));
         } else {
           await cartRef.set({
             'name': widget.product.name,
@@ -182,7 +314,10 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
             'quantity': 1,
           });
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${widget.product.name} (${pack.size}) added to cart."), backgroundColor: Colors.green.shade600));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content:
+                  Text("${widget.product.name} (${pack.size}) added to cart."),
+              backgroundColor: Colors.green.shade600));
         }
       } else {
         await cartRef.set({
@@ -193,11 +328,15 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
           'quantity': 1,
         });
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${widget.product.name} (${pack.size}) added to cart!"), backgroundColor: Colors.green.shade600));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:
+                Text("${widget.product.name} (${pack.size}) added to cart!"),
+            backgroundColor: Colors.green.shade600));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add to cart: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed to add to cart: $e')));
     }
   }
 
@@ -211,10 +350,20 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: Text(widget.product.name, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.grey.shade800)),
+        title: Text(
+          widget.product.name,
+          style: GoogleFonts.playfairDisplay(
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
         backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: IconThemeData(color: Colors.grey.shade800),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black87),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(color: Colors.grey.shade200, height: 1.0),
+        ),
       ),
       body: ListView(
         children: [
@@ -228,8 +377,11 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
                     imageUrl: widget.product.backgroundImageUrl,
                     fit: BoxFit.cover,
                     alignment: Alignment.center,
-                    placeholder: (c, u) => Container(color: Colors.grey.shade300),
-                    errorWidget: (c, e, s) => Container(color: Colors.grey.shade300, child: const Icon(Iconsax.gallery_slash)),
+                    placeholder: (c, u) =>
+                        Container(color: Colors.grey.shade300),
+                    errorWidget: (c, e, s) => Container(
+                        color: Colors.grey.shade300,
+                        child: const Icon(Iconsax.gallery_slash)),
                   ),
                   // Subtle vignette for readability
                   Container(
@@ -290,17 +442,26 @@ class _IndigoProductDetailPageState extends State<IndigoProductDetailPage> {
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))]),
+        decoration: BoxDecoration(color: Colors.white, boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5))
+        ]),
         child: ElevatedButton.icon(
           onPressed: _addToCart,
           icon: const Icon(Iconsax.shopping_bag),
-          label: Text(_selectedPack == null ? 'Add to Cart' : 'Add to Cart (${_selectedPack!.size})'),
+          label: Text(_selectedPack == null
+              ? 'Add to Cart'
+              : 'Add to Cart (${_selectedPack!.size})'),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
             backgroundColor: Colors.deepOrange,
             foregroundColor: Colors.white,
-            textStyle: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            textStyle:
+                GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ),

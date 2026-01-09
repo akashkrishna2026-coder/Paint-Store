@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart'; // Keep for contact section
-import 'package:firebase_database/firebase_database.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../product/explore_product.dart'; // Keep for hero section button
 import 'package:iconsax/iconsax.dart';
 
@@ -207,157 +205,13 @@ class GetInTouchSection extends StatelessWidget {
   }
 }
 
-class PopularTrendsSection extends StatefulWidget {
+class PopularTrendsSection extends StatelessWidget {
   const PopularTrendsSection({super.key});
 
   @override
-  State<PopularTrendsSection> createState() => _PopularTrendsSectionState();
-}
-
-class _PopularTrendsSectionState extends State<PopularTrendsSection> {
-  late final Future<List<Map<String, dynamic>>> _trendsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _trendsFuture = _fetchTrends();
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchTrends() async {
-    final snap = await FirebaseDatabase.instance.ref('trends').get();
-    if (!snap.exists || snap.value == null) return [];
-    final map = Map<String, dynamic>.from(snap.value as Map);
-    final List<Map<String, dynamic>> items = [];
-    map.forEach((key, value) {
-      try {
-        final m = Map<String, dynamic>.from(value);
-        items.add({
-          'key': key,
-          'title': (m['title'] ?? '').toString(),
-          'imageUrl': (m['imageUrl'] ?? '').toString(),
-          'pdfUrl': (m['pdfUrl'] ?? '').toString(),
-        });
-      } catch (_) {}
-    });
-    return items;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionTitle('Popular Trends'),
-        SizedBox(
-          height: 150,
-          child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: _trendsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  scrollDirection: Axis.horizontal,
-                  itemBuilder: (_, __) => _skeletonCard(),
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemCount: 4,
-                );
-              }
-              final items = snapshot.data ?? [];
-              if (items.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('No trends yet',
-                      style: GoogleFonts.poppins(color: Colors.grey.shade600)),
-                );
-              }
-              return ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                itemCount: items.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  final it = items[index];
-                  return _trendCard(context, it['title'] as String,
-                      it['imageUrl'] as String, it['pdfUrl'] as String);
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _skeletonCard() {
-    return Container(
-      width: 200,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(12),
-      ),
-    );
-  }
-
-  Widget _trendCard(
-      BuildContext context, String title, String imageUrl, String pdfUrl) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () async {
-        final uri = Uri.parse(pdfUrl);
-        final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-        if (!ok && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open PDF')),
-          );
-        }
-      },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          children: [
-            Container(
-              width: 200,
-              height: double.infinity,
-              color: Colors.white,
-              child: CachedNetworkImage(
-                imageUrl: imageUrl,
-                fit: BoxFit.cover,
-                memCacheWidth: 600,
-                placeholder: (c, u) => Container(color: Colors.grey.shade200),
-                errorWidget: (c, e, s) => Container(
-                    color: Colors.grey.shade200,
-                    child: const Icon(Iconsax.gallery_slash)),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                width: 200,
-                padding: const EdgeInsets.all(10),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Color(0xCC000000),
-                      Color(0x33000000),
-                      Colors.transparent
-                    ],
-                  ),
-                ),
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                      color: Colors.white, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    // Trends feature removed
+    return const SizedBox.shrink();
   }
 }
 

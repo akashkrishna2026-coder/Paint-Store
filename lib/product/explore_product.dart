@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../model/product_model.dart';
-import '../services/recommendation_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../app/providers.dart';
 import 'product_detail_page.dart';
 import 'explore/interior_page.dart';
 import 'explore/exterior_page.dart';
@@ -13,14 +13,14 @@ import '../pages/core/home_page.dart';
 import '../auth/personal_info_page.dart';
 import '../pages/core/cart_page.dart';
 
-class ExploreProductPage extends StatefulWidget {
+class ExploreProductPage extends ConsumerStatefulWidget {
   const ExploreProductPage({super.key});
 
   @override
-  State<ExploreProductPage> createState() => _ExploreProductPageState();
+  ConsumerState<ExploreProductPage> createState() => _ExploreProductPageState();
 }
 
-class _ExploreProductPageState extends State<ExploreProductPage> {
+class _ExploreProductPageState extends ConsumerState<ExploreProductPage> {
   // This list holds three static category images that never refresh.
   static const List<AssetImage> _images = [
     AssetImage("assets/image_b8a96a.jpg"),
@@ -33,9 +33,9 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
     super.initState();
     // Pre-cache static images once - they will never refresh
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      for (var image in _images) {
-        precacheImage(image, context);
-      }
+      ref.read(exploreVMProvider.notifier).precacheHeroImages(context);
+      // Trigger initial recommended load via ViewModel (idempotent)
+      ref.read(exploreVMProvider.notifier).loadRecommended(limit: 10);
     });
   }
 
@@ -53,82 +53,73 @@ class _ExploreProductPageState extends State<ExploreProductPage> {
   }
 
   Widget _buildRecommendedSection() {
-    return FutureBuilder<List<Product>>(
-      future: RecommendationService.fetchRecommendedProducts(limit: 10),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox.shrink();
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        final items = snapshot.data!;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Text(
-                'Recommended for you',
-                style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    color: Colors.grey.shade800),
-              ),
-            ),
-            SizedBox(
-              height: 210,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: items.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  final p = items[index];
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => ProductDetailPage(product: p)),
-                      );
-                    },
-                    child: SizedBox(
-                      width: 150,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: AspectRatio(
-                              aspectRatio: 1,
-                              child: CachedNetworkImage(
-                                imageUrl: p.mainImageUrl,
-                                fit: BoxFit.cover,
-                                placeholder: (c, u) =>
-                                    Container(color: Colors.grey.shade200),
-                                errorWidget: (c, u, e) =>
-                                    const Icon(Iconsax.gallery_slash),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            p.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    ),
+    final vmState = ref.watch(exploreVMProvider);
+    if (vmState.loading) return const SizedBox.shrink();
+    if (vmState.items.isEmpty) return const SizedBox.shrink();
+    final items = vmState.items;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Text(
+            'Recommended for you',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                color: Colors.grey.shade800),
+          ),
+        ),
+        SizedBox(
+          height: 210,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final p = items[index];
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => ProductDetailPage(product: p)),
                   );
                 },
-              ),
-            ),
-          ],
-        );
-      },
+                child: SizedBox(
+                  width: 150,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: AspectRatio(
+                          aspectRatio: 1,
+                          child: CachedNetworkImage(
+                            imageUrl: p.mainImageUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (c, u) =>
+                                Container(color: Colors.grey.shade200),
+                            errorWidget: (c, u, e) =>
+                                const Icon(Iconsax.gallery_slash),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        p.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
