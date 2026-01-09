@@ -15,9 +15,13 @@ from storage import upload_to_firebase
 
 app = FastAPI()
 
+# CORS origins from env (comma-separated). If not set, default to '*' for local dev only.
+cors_env = os.getenv("CORS_ORIGINS", "*").strip()
+origins = [o.strip() for o in cors_env.split(",") if o.strip()] if cors_env else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

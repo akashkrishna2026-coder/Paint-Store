@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+  visualizer:
+    build:
+      context: ..
+      dockerfile: visualizer_backend/Dockerfile
+    image: visualizer-backend:latest
+    container_name: visualizer-backend
+    restart: unless-stopped
+    environment:
+      - MODEL_PATH=/models/model.onnx
+      - ORT_THREADS=1
+      - FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET}
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/service_account.json
+      - PUBLIC_READ=${PUBLIC_READ:-true}
+      - MAX_IMAGE_SIDE=${MAX_IMAGE_SIDE:-1600}
+      - MIN_MASK_RATIO=${MIN_MASK_RATIO:-0.08}
+      - WALL_CLASS=${WALL_CLASS:-12}
+      - BUILDING_CLASS=${BUILDING_CLASS:-2}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    volumes:
+      - ./models:/models:ro
+      - ./secrets:/secrets:ro
+    ports:
+      - "8000:8000"
+    # If using behind Nginx on same host, you can remove port mapping and use a user-defined network.
