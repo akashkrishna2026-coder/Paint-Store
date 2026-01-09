@@ -37,10 +37,12 @@ A modern Flutter application for browsing paints, managing inventory, and shoppi
 ## Screenshots
 Add PNG/JPG screenshots to `screenshots/` and they will render below. Replace placeholders with your images:
 
-![Home](screenshots/home.png)
-![Cart](screenshots/cart.png)
-![Product Detail](screenshots/product_detail.png)
-![Manager Dashboard](screenshots/manager_dashboard.png)
+<p>
+  <img src="screenshots/home.png" alt="Home" width="360" />
+  <img src="screenshots/cart.png" alt="Cart" width="360" />
+  <img src="screenshots/product_detail.png" alt="Product Detail" width="360" />
+  <img src="screenshots/manager_dashboard.png" alt="Manager Dashboard" width="360" />
+</p>
 
 ## Architecture: MVVM with Riverpod
 This codebase was migrated to MVVM to improve testability, separation of concerns, and scaling.
