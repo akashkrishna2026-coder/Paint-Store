@@ -1,4 +1,4 @@
-# Chnadras-Paint Store (Flutter + Firebase)
+# Chandras-Paint Store (Flutter + Firebase)
 
 [![Flutter CI](https://github.com/akashkrishna2026-coder/Paint-Store/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/akashkrishna2026-coder/Paint-Store/actions/workflows/flutter-ci.yml)
 ![Flutter](https://img.shields.io/badge/Flutter-3.29.0-blue?logo=flutter)
