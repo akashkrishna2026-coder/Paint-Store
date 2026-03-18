@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:lottie/lottie.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:c_h_p/pages/core/cart_page.dart';
 
@@ -29,13 +28,127 @@ class ProductDisplayPage extends StatefulWidget {
   State<ProductDisplayPage> createState() => _ProductDisplayPageState();
 }
 
-class _ProductDisplayPageState extends State<ProductDisplayPage> {
+class _ProductDisplayPageState extends State<ProductDisplayPage>
+    with SingleTickerProviderStateMixin {
   late Future<List<Product>> _productsFuture;
+  late final AnimationController _sadReactionController;
+  late final Animation<double> _sadBobY;
+  late final Animation<double> _sadTilt;
+  late final Animation<double> _sadShakeX;
+  late final Animation<double> _sadScale;
+  late final Animation<double> _sadOpacity;
 
   @override
   void initState() {
     super.initState();
     _productsFuture = _fetchProducts();
+    _sadReactionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat();
+
+    _sadBobY = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: -10.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 18,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: -10.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 18,
+      ),
+      TweenSequenceItem(tween: ConstantTween(0.0), weight: 64),
+    ]).animate(_sadReactionController);
+
+    _sadShakeX = TweenSequence<double>([
+      TweenSequenceItem(tween: ConstantTween(0.0), weight: 45),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: -6.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 5,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: -6.0, end: 6.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 7,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 6.0, end: -4.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 7,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: -4.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 6,
+      ),
+      TweenSequenceItem(tween: ConstantTween(0.0), weight: 30),
+    ]).animate(_sadReactionController);
+
+    _sadTilt = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: -0.07)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 15,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: -0.07, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 15,
+      ),
+      TweenSequenceItem(tween: ConstantTween(0.0), weight: 30),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: 0.05)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 8,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.05, end: -0.03)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 8,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: -0.03, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 8,
+      ),
+      TweenSequenceItem(tween: ConstantTween(0.0), weight: 16),
+    ]).animate(_sadReactionController);
+
+    _sadScale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 1.03)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 18,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.03, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 18,
+      ),
+      TweenSequenceItem(tween: ConstantTween(1.0), weight: 64),
+    ]).animate(_sadReactionController);
+
+    _sadOpacity = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.85, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 18,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 0.9)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 18,
+      ),
+      TweenSequenceItem(tween: ConstantTween(0.9), weight: 64),
+    ]).animate(_sadReactionController);
+  }
+
+  @override
+  void dispose() {
+    _sadReactionController.dispose();
+    super.dispose();
   }
 
   // This function fetches all products and filters them based on the provided category or sub-category.
@@ -452,10 +565,24 @@ class _ProductDisplayPageState extends State<ProductDisplayPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Lottie.asset(
-              'assets/empty.json', // Make sure you have this file in your assets
-              width: 200,
-              height: 200,
+            AnimatedBuilder(
+              animation: _sadReactionController,
+              child: Text('😞', style: GoogleFonts.poppins(fontSize: 72)),
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(_sadShakeX.value, _sadBobY.value),
+                  child: Transform.rotate(
+                    angle: _sadTilt.value,
+                    child: Transform.scale(
+                      scale: _sadScale.value,
+                      child: Opacity(
+                        opacity: _sadOpacity.value,
+                        child: child,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             Text(
