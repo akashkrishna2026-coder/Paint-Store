@@ -41,8 +41,8 @@ void main() {
       );
 
       // 2. Find the text widgets
-      final titleFinder = find.text('Paint Your World');
-      final subtitleFinder = find.text('Find the perfect color for your home, with free delivery.');
+      final titleFinder = find.text('Transforming Spaces with Color');
+      final subtitleFinder = find.text('Premium quality paints for your home and business');
       final buttonFinder = find.text('Explore Products');
 
       // 3. Verify they all exist
