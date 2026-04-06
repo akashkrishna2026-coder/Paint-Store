@@ -1,13 +1,12 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:c_h_p/model/product_model.dart';
+import 'package:c_h_p/services/cloudinary_upload_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as path;
 import 'package:iconsax/iconsax.dart';
 
 class EditProductPage extends StatefulWidget {
@@ -68,6 +67,41 @@ class _EditProductPageState extends State<EditProductPage> {
     'Others': ['Brushes', 'Tools', 'Turpentine', 'Cloths'],
   };
 
+  String? _normalizeSelection(String? rawValue, List<String> options) {
+    if (rawValue == null) return null;
+    for (final option in options) {
+      if (option.toLowerCase() == rawValue.toLowerCase()) {
+        return option;
+      }
+    }
+    return null;
+  }
+
+  List<String> _categoriesForBrand(String? brand) {
+    if (brand == 'Indigo Paints') {
+      return ['Interior', 'Exterior', 'Waterproofing'];
+    }
+    return _categories;
+  }
+
+  List<String> _subCategoriesForSelection(String? brand, String? category) {
+    if (category == null) return const [];
+    if (brand == 'Indigo Paints') {
+      if (category == 'Interior') {
+        return ['Platinum', 'Gold', 'Silver', 'Bronze'];
+      }
+      if (category == 'Exterior') {
+        return ['Platinum', 'Gold'];
+      }
+    }
+    return _subCategories[category] ?? const [];
+  }
+
+  List<String> _getCategoriesForSelection() => _categoriesForBrand(_selectedBrand);
+
+  List<String> _getSubCategoriesForSelection() =>
+      _subCategoriesForSelection(_selectedBrand, _selectedCategory);
+
   @override
   void initState() {
     super.initState();
@@ -90,10 +124,14 @@ class _EditProductPageState extends State<EditProductPage> {
     _price10LController = TextEditingController(text: _product.packSizes.firstWhere((p) => p.size == '10 L', orElse: () => PackSize(size: '', price: '')).price);
     _price20LController = TextEditingController(text: _product.packSizes.firstWhere((p) => p.size == '20 L', orElse: () => PackSize(size: '', price: '')).price);
 
-    // Initialize dropdowns
-    _selectedBrand = _product.brand;
-    _selectedCategory = _product.category;
-    _selectedSubCategory = _product.subCategory;
+    // Initialize dropdowns with safe/normalized values to prevent form assertions.
+    _selectedBrand = _normalizeSelection(_product.brand, _brands);
+    _selectedCategory =
+        _normalizeSelection(_product.category, _categoriesForBrand(_selectedBrand));
+    _selectedSubCategory = _normalizeSelection(
+      _product.subCategory,
+      _subCategoriesForSelection(_selectedBrand, _selectedCategory),
+    );
   }
 
   @override
@@ -130,10 +168,11 @@ class _EditProductPageState extends State<EditProductPage> {
   }
 
   Future<String> _uploadFile(File file, String folder) async {
-    String fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(file.path)}';
-    Reference storageRef = FirebaseStorage.instance.ref().child('$folder/$fileName');
-    TaskSnapshot snapshot = await storageRef.putFile(file);
-    return await snapshot.ref.getDownloadURL();
+    final ext = file.path.toLowerCase();
+    if (ext.endsWith('.pdf')) {
+      return CloudinaryUploadService.uploadRaw(file, folder: folder);
+    }
+    return CloudinaryUploadService.uploadImage(file, folder: folder);
   }
 
   Future<void> _updateProduct() async {
@@ -144,9 +183,12 @@ class _EditProductPageState extends State<EditProductPage> {
       // Smartly upload only the files that have changed
       String mainImageUrl = _mainImageFile != null ? await _uploadFile(_mainImageFile!, 'product_images') : _product.mainImageUrl;
       String backgroundImageUrl = _backgroundImageFile != null ? await _uploadFile(_backgroundImageFile!, 'background_images') : _product.backgroundImageUrl;
-      String benefit1ImageUrl = _benefitImage1File != null ? await _uploadFile(_benefitImage1File!, 'benefit_images') : _product.benefits[0].image;
-      String benefit2ImageUrl = _benefitImage2File != null ? await _uploadFile(_benefitImage2File!, 'benefit_images') : _product.benefits[1].image;
-      String benefit3ImageUrl = _benefitImage3File != null ? await _uploadFile(_benefitImage3File!, 'benefit_images') : _product.benefits[2].image;
+      final String benefit1ExistingImage = _product.benefits.isNotEmpty ? _product.benefits[0].image : '';
+      final String benefit2ExistingImage = _product.benefits.length > 1 ? _product.benefits[1].image : '';
+      final String benefit3ExistingImage = _product.benefits.length > 2 ? _product.benefits[2].image : '';
+      String benefit1ImageUrl = _benefitImage1File != null ? await _uploadFile(_benefitImage1File!, 'benefit_images') : benefit1ExistingImage;
+      String benefit2ImageUrl = _benefitImage2File != null ? await _uploadFile(_benefitImage2File!, 'benefit_images') : benefit2ExistingImage;
+      String benefit3ImageUrl = _benefitImage3File != null ? await _uploadFile(_benefitImage3File!, 'benefit_images') : benefit3ExistingImage;
       String brochureUrl = _brochureFile != null ? await _uploadFile(_brochureFile!, 'brochures') : _product.brochureUrl;
 
       final updatedProductData = {
@@ -233,12 +275,63 @@ class _EditProductPageState extends State<EditProductPage> {
             const SizedBox(height: 24),
 
             _buildSectionTitle("Categorization"),
-            DropdownButtonFormField<String>(value: _selectedBrand, decoration: const InputDecoration(labelText: 'Brand'), items: _brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(), onChanged: (v) => setState(() => _selectedBrand = v), validator: (v) => v == null ? 'Required' : null),
+            // ignore: deprecated_member_use
+            DropdownButtonFormField<String>(
+              initialValue: _selectedBrand,
+              decoration: const InputDecoration(labelText: 'Brand'),
+              items: _brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+              onChanged: (v) {
+                setState(() {
+                  _selectedBrand = v;
+
+                  final allowedCategories = _getCategoriesForSelection();
+                  if (_selectedCategory != null &&
+                      !allowedCategories.contains(_selectedCategory)) {
+                    _selectedCategory = null;
+                  }
+
+                  final allowedSubCategories = _getSubCategoriesForSelection();
+                  if (_selectedSubCategory != null &&
+                      !allowedSubCategories.contains(_selectedSubCategory)) {
+                    _selectedSubCategory = null;
+                  }
+                });
+              },
+              validator: (v) => v == null ? 'Required' : null,
+            ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(value: _selectedCategory, decoration: const InputDecoration(labelText: 'Category'), items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(), onChanged: (v) { setState(() { _selectedCategory = v; _selectedSubCategory = null; }); }, validator: (v) => v == null ? 'Required' : null),
-            if (_selectedCategory != null) ...[
+            // ignore: deprecated_member_use
+            DropdownButtonFormField<String>(
+              initialValue: _selectedCategory,
+              decoration: const InputDecoration(labelText: 'Category'),
+              items: _getCategoriesForSelection()
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .toList(),
+              onChanged: (v) {
+                setState(() {
+                  _selectedCategory = v;
+                  final allowedSubCategories = _getSubCategoriesForSelection();
+                  if (_selectedSubCategory != null &&
+                      !allowedSubCategories.contains(_selectedSubCategory)) {
+                    _selectedSubCategory = null;
+                  }
+                });
+              },
+              validator: (v) => v == null ? 'Required' : null,
+            ),
+            if (_selectedCategory != null && _getSubCategoriesForSelection().isNotEmpty) ...[
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(value: _selectedSubCategory, decoration: const InputDecoration(labelText: 'Sub-Category'), items: (_subCategories[_selectedCategory] ?? []).map((sc) => DropdownMenuItem(value: sc, child: Text(sc))).toList(), onChanged: (v) => setState(() => _selectedSubCategory = v), validator: (v) => v == null ? 'Required' : null),
+              // ignore: deprecated_member_use
+              DropdownButtonFormField<String>(
+                initialValue: _selectedSubCategory,
+                decoration: const InputDecoration(labelText: 'Sub-Category'),
+                items: _getSubCategoriesForSelection()
+                    .where((sc) => sc.isNotEmpty)
+                    .map((sc) => DropdownMenuItem(value: sc, child: Text(sc)))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedSubCategory = v),
+                validator: (v) => v == null ? 'Required' : null,
+              ),
             ],
             const SizedBox(height: 24),
 
